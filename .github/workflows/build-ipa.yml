@@ -16,7 +16,7 @@ jobs:
 
     env:
       PROJECT: ThreeOneOSFive.xcodeproj
-      SCHEME: OGIOS
+      SCHEME: VOLCANO
       CONFIGURATION: Release
 
     steps:
@@ -29,7 +29,7 @@ jobs:
           xcodebuild -version
           xcode-select -p
 
-      - name: Prepare project resources
+      - name: Validate project resources
         run: |
           set -euo pipefail
 
@@ -38,21 +38,14 @@ jobs:
           test -f "$PROJECT/project.pbxproj"
 
           echo "Checking shared scheme..."
-          test -f "$PROJECT/xcshareddata/xcschemes/OGIOS.xcscheme"
+          test -f "$PROJECT/xcshareddata/xcschemes/VOLCANO.xcscheme"
 
           PATCH_DIR="ThreeOneOSFive/Patches"
           test -d "$PATCH_DIR"
 
-          # The project file refers to VOLCANO File (1..14).3105,
-          # while the source archive contains the corresponding OGIOS files.
-          # Create the expected resource filenames in the runner workspace.
+          # The project expects VOLCANO patch resources. Verify every resource is present.
           for n in $(seq 1 14); do
-            src="$PATCH_DIR/OGIOS File ($n).3105"
-            dst="$PATCH_DIR/VOLCANO File ($n).3105"
-            if [ ! -f "$dst" ]; then
-              test -f "$src"
-              cp "$src" "$dst"
-            fi
+            test -f "$PATCH_DIR/VOLCANO File ($n).3105"
           done
 
           echo "Patch resources:"
