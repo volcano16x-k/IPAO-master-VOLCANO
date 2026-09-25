@@ -58,7 +58,7 @@ struct ContentView: View {
     private var brandHeader: some View {
         HStack(spacing: 14) {
             VStack(alignment: .leading, spacing: 3) {
-                Text("FLASH")
+                Text("VOLCANO")
                     .font(.system(size: 25, weight: .black, design: .rounded))
                     .tracking(3)
                     .foregroundStyle(.white)
@@ -114,7 +114,7 @@ struct ContentView: View {
                 patchCard(name: "144 FPS", target: "FREE FIRE • NORMAL", package: "VOLCANO File (10).3105", color: AppTheme.secondaryAccent, state: $hyperBalamagicaEnabled)
                 patchCard(name: "Aim Body", target: "FREE FIRE • NORMAL", package: "VOLCANO File (12).3105", color: AppTheme.accent, state: $aimBodyPackageEnabled)
                 patchCard(name: "MOD SKIN", target: "FREE FIRE • NORMAL", package: "VOLCANO File (2).3105", color: AppTheme.secondaryAccent, state: $aimChestPackageEnabled)
-                patchCard(name: "volcano panel", target: "FREE FIRE • NORMAL", package: "VOLCANO File (14).3105", color: AppTheme.accent, state: $magicEnabled)
+                patchCard(name: VOLCANO Panel", target: "FREE FIRE • NORMAL", package: "VOLCANO File (14).3105", color: AppTheme.accent, state: $magicEnabled)
             }
 
             HStack(spacing: 8) {
@@ -208,7 +208,7 @@ struct ContentView: View {
                 .tracking(1.2)
                 .foregroundStyle(.white.opacity(0.72))
             Spacer()
-            Text("FLASH • PRONTO")
+            Text("VOLCANO • PRONTO")
                 .font(.system(size: 9, weight: .bold, design: .rounded))
                 .foregroundStyle(AppTheme.accent.opacity(0.8))
         }
@@ -220,7 +220,7 @@ struct ContentView: View {
 
     private var developerCredits: some View {
         VStack(spacing: 10) {
-            Text("Developed by FLASH IOS")
+            Text("Developed by VOLCANO")
                 .font(.system(size: 11, weight: .bold, design: .rounded))
                 .foregroundStyle(.white.opacity(0.72))
                 .multilineTextAlignment(.center)
@@ -230,7 +230,7 @@ struct ContentView: View {
                 .foregroundStyle(AppTheme.secondaryAccent.opacity(0.85))
 
             HStack(spacing: 10) {
-                channelButton(title: "FLASH Telegram", url: "https://t.me/@iosflash")
+                channelButton(title: "VOLCANO Telegram", url: "https://t.me/volcano16x")
             }
         }
         .frame(maxWidth: .infinity)
@@ -468,7 +468,7 @@ private struct PatchUnlockPrompt: View {
                             .foregroundStyle(.red)
                     }
                 } footer: {
-                    Text("Enter the password once to unlock this FLASH package on this device.")
+                    Text("Enter the password once to unlock this VOLCANO package on this device.")
                 }
             }
             .navigationTitle("Unlock package")
