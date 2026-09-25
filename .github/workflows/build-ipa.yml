@@ -17,7 +17,7 @@ jobs:
 
     env:
       PROJECT: ThreeOneOSFive.xcodeproj
-      SCHEME: OGIOS
+      SCHEME: VOLCANO
       CONFIGURATION: Release
 
     steps:
@@ -39,21 +39,15 @@ jobs:
           test -f "$PROJECT/project.pbxproj"
 
           echo "Checking shared scheme..."
-          test -f "$PROJECT/xcshareddata/xcschemes/OGIOS.xcscheme"
+          test -f "$PROJECT/xcshareddata/xcschemes/VOLCANO.xcscheme"
 
           PATCH_DIR="ThreeOneOSFive/Patches"
           test -d "$PATCH_DIR"
 
-          # The project file refers to VOLCANO File (1..14).3105,
-          # while the source archive contains the corresponding OGIOS files.
-          # Create the expected resource filenames in the runner workspace.
+          echo "Checking patch resources..."
+
           for n in $(seq 1 14); do
-            src="$PATCH_DIR/OGIOS File ($n).3105"
-            dst="$PATCH_DIR/VOLCANO File ($n).3105"
-            if [ ! -f "$dst" ]; then
-              test -f "$src"
-              cp "$src" "$dst"
-            fi
+            test -f "$PATCH_DIR/VOLCANO File ($n).3105"
           done
 
           echo "Patch resources:"
@@ -71,26 +65,48 @@ jobs:
           rm -rf build
           mkdir -p build
 
-          xcodebuild archive             -project "$PROJECT"             -scheme "$SCHEME"             -configuration "$CONFIGURATION"             -sdk iphoneos             -archivePath "$PWD/build/VOLCANO.xcarchive"             CODE_SIGNING_ALLOWED=NO             CODE_SIGNING_REQUIRED=NO             CODE_SIGN_IDENTITY=""
+          xcodebuild archive \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration "$CONFIGURATION" \
+            -sdk iphoneos \
+            -archivePath "$PWD/build/VOLCANO.xcarchive" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
 
       - name: Create unsigned IPA
         run: |
           set -euo pipefail
 
-          APP_PATH="$(find             "build/VOLCANO.xcarchive/Products/Applications"             -maxdepth 1             -type d             -name "*.app"             -print -quit)"
+          APP_PATH="$(find "build/VOLCANO.xcarchive/Products/Applications" \
+            -maxdepth 1 \
+            -type d \
+            -name "*.app" \
+            -print -quit)"
 
           test -n "$APP_PATH"
+
           echo "Found app: $APP_PATH"
 
           rm -rf build/Payload
           mkdir -p build/Payload
+
           cp -R "$APP_PATH" build/Payload/
 
           cd build
-          /usr/bin/ditto -c -k --sequesterRsrc --keepParent Payload VOLCANO-unsigned.ipa
+
+          /usr/bin/ditto \
+            -c -k \
+            --sequesterRsrc \
+            --keepParent \
+            Payload \
+            VOLCANO-unsigned.ipa
+
           cd ..
 
           test -s build/VOLCANO-unsigned.ipa
+
           ls -lh build/VOLCANO-unsigned.ipa
 
       - name: Upload IPA
