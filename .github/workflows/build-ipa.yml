@@ -1,0 +1,102 @@
+name: Build IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    env:
+      PROJECT: ThreeOneOSFive.xcodeproj
+      SCHEME: VOLCANO
+      CONFIGURATION: Release
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          xcode-select -p
+
+      - name: Validate project resources
+        run: |
+          set -euo pipefail
+
+          echo "Checking project..."
+          test -d "$PROJECT"
+          test -f "$PROJECT/project.pbxproj"
+
+          echo "Checking shared scheme..."
+          test -f "$PROJECT/xcshareddata/xcschemes/VOLCANO.xcscheme"
+
+          PATCH_DIR="ThreeOneOSFive/Patches"
+          test -d "$PATCH_DIR"
+
+          # The project expects VOLCANO patch resources. Verify every resource is present.
+          for n in $(seq 1 14); do
+            test -f "$PATCH_DIR/VOLCANO File ($n).3105"
+          done
+
+          echo "Patch resources:"
+          ls -lh "$PATCH_DIR"/*.3105
+
+      - name: Validate Xcode project
+        run: |
+          set -euo pipefail
+          xcodebuild -list -project "$PROJECT"
+
+      - name: Build unsigned archive
+        run: |
+          set -euo pipefail
+
+          rm -rf build
+          mkdir -p build
+
+          xcodebuild archive             -project "$PROJECT"             -scheme "$SCHEME"             -configuration "$CONFIGURATION"             -sdk iphoneos             -archivePath "$PWD/build/VOLCANO.xcarchive"             CODE_SIGNING_ALLOWED=NO             CODE_SIGNING_REQUIRED=NO             CODE_SIGN_IDENTITY=""
+
+      - name: Create unsigned IPA
+        run: |
+          set -euo pipefail
+
+          APP_PATH="$(find             "build/VOLCANO.xcarchive/Products/Applications"             -maxdepth 1             -type d             -name "*.app"             -print -quit)"
+
+          test -n "$APP_PATH"
+          echo "Found app: $APP_PATH"
+
+          rm -rf build/Payload
+          mkdir -p build/Payload
+          cp -R "$APP_PATH" build/Payload/
+
+          cd build
+          /usr/bin/ditto -c -k --sequesterRsrc --keepParent Payload VOLCANO-unsigned.ipa
+          cd ..
+
+          test -s build/VOLCANO-unsigned.ipa
+          ls -lh build/VOLCANO-unsigned.ipa
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: VOLCANO-IPA
+          path: build/VOLCANO-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: VOLCANO-XCArchive
+          path: build/VOLCANO.xcarchive
+          if-no-files-found: error
+          retention-days: 7
