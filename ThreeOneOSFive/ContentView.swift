@@ -58,7 +58,7 @@ struct ContentView: View {
     private var brandHeader: some View {
         HStack(spacing: 14) {
             VStack(alignment: .leading, spacing: 3) {
-                Text("VOLCANO")
+                Text("FLASH")
                     .font(.system(size: 25, weight: .black, design: .rounded))
                     .tracking(3)
                     .foregroundStyle(.white)
@@ -208,7 +208,7 @@ struct ContentView: View {
                 .tracking(1.2)
                 .foregroundStyle(.white.opacity(0.72))
             Spacer()
-            Text("VOLCANO • PRONTO")
+            Text("FLASH • PRONTO")
                 .font(.system(size: 9, weight: .bold, design: .rounded))
                 .foregroundStyle(AppTheme.accent.opacity(0.8))
         }
@@ -220,7 +220,7 @@ struct ContentView: View {
 
     private var developerCredits: some View {
         VStack(spacing: 10) {
-            Text("Developed by VOLCANO")
+            Text("Developed by FLASH IOS")
                 .font(.system(size: 11, weight: .bold, design: .rounded))
                 .foregroundStyle(.white.opacity(0.72))
                 .multilineTextAlignment(.center)
@@ -230,7 +230,7 @@ struct ContentView: View {
                 .foregroundStyle(AppTheme.secondaryAccent.opacity(0.85))
 
             HStack(spacing: 10) {
-                channelButton(title: "VOLCANO Telegram", url: "https://t.me/volcano16x")
+                channelButton(title: "FLASH Telegram", url: "https://t.me/@iosflash")
             }
         }
         .frame(maxWidth: .infinity)
@@ -468,7 +468,7 @@ private struct PatchUnlockPrompt: View {
                             .foregroundStyle(.red)
                     }
                 } footer: {
-                    Text("Enter the password once to unlock this VOLCANO package on this device.")
+                    Text("Enter the password once to unlock this FLASH package on this device.")
                 }
             }
             .navigationTitle("Unlock package")
