@@ -114,7 +114,7 @@ struct ContentView: View {
                 patchCard(name: "144 FPS", target: "FREE FIRE • NORMAL", package: "VOLCANO File (10).3105", color: AppTheme.secondaryAccent, state: $hyperBalamagicaEnabled)
                 patchCard(name: "Aim Body", target: "FREE FIRE • NORMAL", package: "VOLCANO File (12).3105", color: AppTheme.accent, state: $aimBodyPackageEnabled)
                 patchCard(name: "Aim Chest", target: "FREE FIRE • NORMAL", package: "VOLCANO File (2).3105", color: AppTheme.secondaryAccent, state: $aimChestPackageEnabled)
-                patchCard(name: "Magic", target: "FREE FIRE • NORMAL", package: "VOLCANO File (14).3105", color: AppTheme.accent, state: $magicEnabled)
+                patchCard(name: "panel Flash", target: "FREE FIRE • NORMAL", package: "VOLCANO File (14).3105", color: AppTheme.accent, state: $magicEnabled)
             }
 
             HStack(spacing: 8) {
