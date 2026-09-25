@@ -110,7 +110,7 @@ struct ContentView: View {
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
                 patchCard(name: "Aim Drag", target: "FREE FIRE • NORMAL", package: "VOLCANO File (6).3105", color: AppTheme.accent, state: $aimDragEnabled)
                 patchCard(name: "Aim Neck", target: "FREE FIRE • NORMAL", package: "VOLCANO File (7).3105", color: AppTheme.secondaryAccent, state: $aimNeckEnabled)
-                patchCard(name: "Antenna", target: "FREE FIRE • NORMAL", package: "VOLCANO File (8).3105", color: AppTheme.secondaryAccent, state: $hspeitoffEnabled)
+                patchCard(name: "Avatar Clean", target: "FREE FIRE • NORMAL", package: "VOLCANO File (8).3105", color: AppTheme.secondaryAccent, state: $hspeitoffEnabled)
                 patchCard(name: "144 FPS", target: "FREE FIRE • NORMAL", package: "VOLCANO File (10).3105", color: AppTheme.secondaryAccent, state: $hyperBalamagicaEnabled)
                 patchCard(name: "Aim Body", target: "FREE FIRE • NORMAL", package: "VOLCANO File (12).3105", color: AppTheme.accent, state: $aimBodyPackageEnabled)
                 patchCard(name: "Aim Chest", target: "FREE FIRE • NORMAL", package: "VOLCANO File (2).3105", color: AppTheme.secondaryAccent, state: $aimChestPackageEnabled)
