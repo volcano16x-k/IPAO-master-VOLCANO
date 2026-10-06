@@ -2,7 +2,7 @@ import SwiftUI
 
 struct LicenseActivationView: View {
     @ObservedObject var manager: LicenseManager
-    @State private var key = ""
+    @State private var key = "LUIS"
     @FocusState private var keyFocused: Bool
 
     var body: some View {
