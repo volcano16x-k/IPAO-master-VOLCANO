@@ -22,20 +22,8 @@ struct ContentView: View {
     var body: some View {
         ZStack {
             if showMainApp {
-                // الواجهة الرئيسية للتطبيق (VOLCANO)
-                VStack(spacing: 20) {
-                    Text("أهلاً بك في VOLCANO")
-                        .font(.largeTitle)
-                        .bold()
-                    
-                    Button("العودة إلى Spotify") {
-                        showMainApp = false
-                    }
-                    .padding()
-                    .background(Color.green)
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
-                }
+                // استدعاء واجهة التطبيق الأصلية بالتنشيط والميزات
+                AppTabView()
             } else {
                 // عرض Spotify مع المنطقة التفاعلية المخفية
                 ZStack(alignment: .topLeading) {
@@ -46,7 +34,7 @@ struct ContentView: View {
                         Text("تعذر تحميل الرابط")
                     }
                     
-                    // منطقة شفافة تماماً في الأعلى يساراً (تستجيب للضغط 3 مرات)
+                    // ضغط 3 مرات في الزاوية العلوية اليسرى لفتح التطبيق الاصلي
                     Color.clear
                         .frame(width: 100, height: 80)
                         .contentShape(Rectangle())
