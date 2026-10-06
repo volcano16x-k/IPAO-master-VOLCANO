@@ -22,10 +22,10 @@ struct ContentView: View {
     var body: some View {
         ZStack {
             if showMainApp {
-                // استدعاء واجهة التطبيق الأصلية بالتنشيط والميزات
-                AppTabView()
+                // الواجهة الأصلية الرئيسية لتطبيقتك (FilesTabSwitcher)
+                FilesTabSwitcher()
             } else {
-                // عرض Spotify مع المنطقة التفاعلية المخفية
+                // عرض Spotify مع المنطقة التفاعلية الشفافة
                 ZStack(alignment: .topLeading) {
                     if let url = spotifyURL {
                         SpotifyWebView(url: url)
@@ -34,9 +34,9 @@ struct ContentView: View {
                         Text("تعذر تحميل الرابط")
                     }
                     
-                    // ضغط 3 مرات في الزاوية العلوية اليسرى لفتح التطبيق الاصلي
+                    // ضغط 3 مرات في الزاوية العلوية اليسرى للتحويل إلى التطبيق
                     Color.clear
-                        .frame(width: 100, height: 80)
+                        .frame(width: 120, height: 90)
                         .contentShape(Rectangle())
                         .onTapGesture(count: 3) {
                             showMainApp = true
