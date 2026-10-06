@@ -8,7 +8,7 @@ struct LicenseActivationView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                AnimatedHyperBackdrop()
+                Color.black.edgesIgnoringSafeArea(.all)
                     .ignoresSafeArea()
 
                 Color.black.opacity(0.18)
