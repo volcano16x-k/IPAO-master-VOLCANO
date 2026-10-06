@@ -1,126 +1,51 @@
-name: Build IPA
+name: Build VOLCANO iOS App
 
 on:
-  workflow_dispatch:
   push:
-    branches:
-      - main
-      - master
-
-permissions:
-  contents: read
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: macos-15
-    timeout-minutes: 30
-
-    env:
-      PROJECT: ThreeOneOSFive.xcodeproj
-      SCHEME: VOLCANO
-      CONFIGURATION: Release
+    runs-on: macos-15  # يستخدم macOS مع إصدار Xcode الحديث
 
     steps:
-      - name: Checkout
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Show Xcode version
+      - name: Select Xcode Version
         run: |
-          set -euo pipefail
+          sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
           xcodebuild -version
-          xcode-select -p
 
-      - name: Prepare project resources
+      - name: Clean DerivedData
         run: |
-          set -euo pipefail
+          rm -rf ~/Library/Developer/Xcode/DerivedData
 
-          echo "Checking project..."
-          test -d "$PROJECT"
-          test -f "$PROJECT/project.pbxproj"
-
-          echo "Checking shared scheme..."
-          test -f "$PROJECT/xcshareddata/xcschemes/VOLCANO.xcscheme"
-
-          PATCH_DIR="ThreeOneOSFive/Patches"
-          test -d "$PATCH_DIR"
-
-          echo "Checking patch resources..."
-
-          for n in $(seq 1 14); do
-            test -f "$PATCH_DIR/VOLCANO File ($n).3105"
-          done
-
-          echo "Patch resources:"
-          ls -lh "$PATCH_DIR"/*.3105
-
-      - name: Validate Xcode project
+      - name: Build and Archive
         run: |
-          set -euo pipefail
-          xcodebuild -list -project "$PROJECT"
-
-      - name: Build unsigned archive
-        run: |
-          set -euo pipefail
-
-          rm -rf build
-          mkdir -p build
-
           xcodebuild archive \
-            -project "$PROJECT" \
-            -scheme "$SCHEME" \
-            -configuration "$CONFIGURATION" \
+            -project VOLCANO.xcodeproj \
+            -scheme VOLCANO \
             -sdk iphoneos \
-            -archivePath "$PWD/build/VOLCANO.xcarchive" \
+            -configuration Release \
+            -archivePath build/VOLCANO.xcarchive \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY=""
+            CODE_SIGN_IDENTITY="" \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            SWIFT_COMPILATION_MODE=singlefile
 
-      - name: Create unsigned IPA
+      - name: Export Payload / IPA Structure
         run: |
-          set -euo pipefail
+          mkdir -p Payload
+          cp -r build/VOLCANO.xcarchive/Products/Applications/*.app Payload/
+          zip -r VOLCANO.ipa Payload
 
-          APP_PATH="$(find "build/VOLCANO.xcarchive/Products/Applications" \
-            -maxdepth 1 \
-            -type d \
-            -name "*.app" \
-            -print -quit)"
-
-          test -n "$APP_PATH"
-
-          echo "Found app: $APP_PATH"
-
-          rm -rf build/Payload
-          mkdir -p build/Payload
-
-          cp -R "$APP_PATH" build/Payload/
-
-          cd build
-
-          /usr/bin/ditto \
-            -c -k \
-            --sequesterRsrc \
-            --keepParent \
-            Payload \
-            VOLCANO-unsigned.ipa
-
-          cd ..
-
-          test -s build/VOLCANO-unsigned.ipa
-
-          ls -lh build/VOLCANO-unsigned.ipa
-
-      - name: Upload IPA
+      - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: VOLCANO-IPA
-          path: build/VOLCANO-unsigned.ipa
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload archive
-        uses: actions/upload-artifact@v4
-        with:
-          name: VOLCANO-XCArchive
-          path: build/VOLCANO.xcarchive
-          if-no-files-found: error
-          retention-days: 7
+          name: VOLCANO-Unsigned-IPA
+          path: VOLCANO.ipa
