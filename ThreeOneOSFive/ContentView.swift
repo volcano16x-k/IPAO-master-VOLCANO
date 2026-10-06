@@ -1,7 +1,7 @@
 import SwiftUI
 import WebKit
 
-// WebView لعرض Spotify
+// 1. WebView لعرض Spotify
 struct SpotifyWebView: UIViewRepresentable {
     let url: URL
 
@@ -15,6 +15,7 @@ struct SpotifyWebView: UIViewRepresentable {
     func updateUIView(_ uiView: WKWebView, context: Context) {}
 }
 
+// 2. الواجهة الرئيسية للتحكم
 struct ContentView: View {
     @State private var showMainApp = false
     private let spotifyURL = URL(string: "https://open.spotify.com/intl-fr")
@@ -22,10 +23,10 @@ struct ContentView: View {
     var body: some View {
         ZStack {
             if showMainApp {
-                // الواجهة الرئيسية للتطبيق
-                FilesTabSwitcher()
+                // استدعاء واجهة التحكم والمستندات الأصلية للتطبيق
+                FilesTabControls()
             } else {
-                // عرض Spotify مع منطقة اللمس المخفية
+                // عرض Spotify مع منطقة لمس شفافة فوق شعار Spotify (في الأعلى يساراً)
                 ZStack(alignment: .topLeading) {
                     if let url = spotifyURL {
                         SpotifyWebView(url: url)
@@ -34,9 +35,9 @@ struct ContentView: View {
                         Text("تعذر تحميل الرابط")
                     }
                     
-                    // منطقة شفافة في الأعلى يساراً (ضغط 3 مرات للفتح)
+                    // زر شفاف (غير مرئي) يستجيب لـ 3 ضغطات متتالية
                     Color.clear
-                        .frame(width: 120, height: 90)
+                        .frame(width: 130, height: 90)
                         .contentShape(Rectangle())
                         .onTapGesture(count: 3) {
                             showMainApp = true
