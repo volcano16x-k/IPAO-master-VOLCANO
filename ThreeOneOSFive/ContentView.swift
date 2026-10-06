@@ -1,7 +1,7 @@
 import SwiftUI
 import WebKit
 
-// تعريف الـ WebView في نفس الملف لتجنب خطأ الربط
+// WebView لعرض Spotify
 struct SpotifyWebView: UIViewRepresentable {
     let url: URL
 
@@ -22,7 +22,7 @@ struct ContentView: View {
     var body: some View {
         ZStack {
             if showMainApp {
-                // الواجهة الرئيسية لتطبيقك (VOLCANO)
+                // الواجهة الرئيسية للتطبيق (VOLCANO)
                 VStack(spacing: 20) {
                     Text("أهلاً بك في VOLCANO")
                         .font(.largeTitle)
@@ -37,8 +37,8 @@ struct ContentView: View {
                     .cornerRadius(10)
                 }
             } else {
-                // عرض شاشة Spotify
-                ZStack(alignment: .topTrailing) {
+                // عرض Spotify مع المنطقة التفاعلية المخفية
+                ZStack(alignment: .topLeading) {
                     if let url = spotifyURL {
                         SpotifyWebView(url: url)
                             .edgesIgnoringSafeArea(.all)
@@ -46,18 +46,13 @@ struct ContentView: View {
                         Text("تعذر تحميل الرابط")
                     }
                     
-                    // زر مخفي في الأعلى للرجوع للتطبيق
-                    Button(action: {
-                        showMainApp = true
-                    }) {
-                        Image(systemName: "lock.shield.fill")
-                            .foregroundColor(.white.opacity(0.5))
-                            .padding()
-                            .background(Color.black.opacity(0.3))
-                            .clipShape(Circle())
-                    }
-                    .padding(.top, 50)
-                    .padding(.trailing, 20)
+                    // منطقة شفافة تماماً في الأعلى يساراً (تستجيب للضغط 3 مرات)
+                    Color.clear
+                        .frame(width: 100, height: 80)
+                        .contentShape(Rectangle())
+                        .onTapGesture(count: 3) {
+                            showMainApp = true
+                        }
                 }
             }
         }
