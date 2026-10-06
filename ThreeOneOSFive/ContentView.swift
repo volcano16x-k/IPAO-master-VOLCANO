@@ -1,14 +1,28 @@
 import SwiftUI
+import WebKit
+
+// تعريف الـ WebView في نفس الملف لتجنب خطأ الربط
+struct SpotifyWebView: UIViewRepresentable {
+    let url: URL
+
+    func makeUIView(context: Context) -> WKWebView {
+        let webView = WKWebView()
+        let request = URLRequest(url: url)
+        webView.load(request)
+        return webView
+    }
+
+    func updateUIView(_ uiView: WKWebView, context: Context) {}
+}
 
 struct ContentView: View {
     @State private var showMainApp = false
-    
-    // إنشاء URL آمن
     private let spotifyURL = URL(string: "https://open.spotify.com/intl-fr")
 
     var body: some View {
         ZStack {
             if showMainApp {
+                // الواجهة الرئيسية لتطبيقك (VOLCANO)
                 VStack(spacing: 20) {
                     Text("أهلاً بك في VOLCANO")
                         .font(.largeTitle)
@@ -23,6 +37,7 @@ struct ContentView: View {
                     .cornerRadius(10)
                 }
             } else {
+                // عرض شاشة Spotify
                 ZStack(alignment: .topTrailing) {
                     if let url = spotifyURL {
                         SpotifyWebView(url: url)
@@ -31,6 +46,7 @@ struct ContentView: View {
                         Text("تعذر تحميل الرابط")
                     }
                     
+                    // زر مخفي في الأعلى للرجوع للتطبيق
                     Button(action: {
                         showMainApp = true
                     }) {
