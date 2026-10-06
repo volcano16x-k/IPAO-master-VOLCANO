@@ -2,11 +2,13 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var showMainApp = false
+    
+    // إنشاء URL آمن
+    private let spotifyURL = URL(string: "https://open.spotify.com/intl-fr")
 
     var body: some View {
         ZStack {
             if showMainApp {
-                // الواجهة الرئيسية لتطبيقك (VOLCANO)
                 VStack(spacing: 20) {
                     Text("أهلاً بك في VOLCANO")
                         .font(.largeTitle)
@@ -21,12 +23,14 @@ struct ContentView: View {
                     .cornerRadius(10)
                 }
             } else {
-                // عرض موقع Spotify
                 ZStack(alignment: .topTrailing) {
-                    SpotifyWebView(url: URL(string: "https://open.spotify.com/intl-fr")!)
-                        .edgesIgnoringSafeArea(.all)
+                    if let url = spotifyURL {
+                        SpotifyWebView(url: url)
+                            .edgesIgnoringSafeArea(.all)
+                    } else {
+                        Text("تعذر تحميل الرابط")
+                    }
                     
-                    // زر مخفي في الأعلى للرجوع إلى تطبيقك
                     Button(action: {
                         showMainApp = true
                     }) {
