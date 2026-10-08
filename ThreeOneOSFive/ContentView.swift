@@ -134,12 +134,7 @@ struct ContentView: View {
     }
 
     private var gameLaunchPanel: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            panelTitle("LAUNCH GAME", icon: "arrow.up.forward.app.fill")
-            HStack(spacing: 12) {
-                launchButton(title: "FF NORMAL", subtitle: "Free Fire Normal", color: AppTheme.accent, scheme: "freefireth")
-                lockedLaunchButton(title: "FF MAX", subtitle: "Locked • Coming Soon", color: AppTheme.secondaryAccent)
-            }
+        
             Button {
                 showCleaner = true
             } label: {
@@ -221,12 +216,12 @@ struct ContentView: View {
                 .foregroundStyle(.white.opacity(0.72))
                 .multilineTextAlignment(.center)
 
-            Text("Our Telegram channels")
+            Text("TikTok")
                 .font(.system(size: 10, weight: .semibold, design: .rounded))
                 .foregroundStyle(AppTheme.secondaryAccent.opacity(0.85))
 
             HStack(spacing: 10) {
-                channelButton(title: "VOLCANO Telegram", url: "https://t.me/volcano16x")
+                channelButton(title: "VOLCANO Telegram", url: "https://www.tiktok.com/@volcano16x")
             }
         }
         .frame(maxWidth: .infinity)
