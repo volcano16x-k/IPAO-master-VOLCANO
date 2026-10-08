@@ -108,9 +108,9 @@ struct ContentView: View {
             }
 
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
-                patchCard(name: "Aim Drag", target: "FREE FIRE • NORMAL", package: "VOLCANO File (6).3105", color: AppTheme.accent, state: $aimDragEnabled)
-                patchCard(name: "Aim Neck", target: "FREE FIRE • NORMAL", package: "VOLCANO File (7).3105", color: AppTheme.secondaryAccent, state: $aimNeckEnabled)
-                patchCard(name: "ESP", target: "FREE FIRE • NORMAL", package: "VOLCANO File (8).3105", color: AppTheme.secondaryAccent, state: $hspeitoffEnabled)
+                patchCard(name: "Regdit", target: "FREE FIRE • NORMAL", package: "VOLCANO File (6).3105", color: AppTheme.accent, state: $aimDragEnabled)
+                patchCard(name: "144fps", target: "FREE FIRE • NORMAL", package: "VOLCANO File (7).3105", color: AppTheme.secondaryAccent, state: $aimNeckEnabled)
+                patchCard(name: "+", target: "FREE FIRE • NORMAL", package: "VOLCANO File (8).3105", color: AppTheme.secondaryAccent, state: $hspeitoffEnabled)
             }
 
             HStack(spacing: 8) {
