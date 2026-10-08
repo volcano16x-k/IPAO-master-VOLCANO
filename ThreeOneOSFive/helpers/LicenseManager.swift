@@ -4,7 +4,7 @@ import Security
 
 @MainActor
 final class LicenseManager: ObservableObject {
-    static let accessKey = "NovoX7"
+    static let accessKey = "1"
 
     @Published private(set) var expirationDate: Date?
     @Published private(set) var isActive = false
