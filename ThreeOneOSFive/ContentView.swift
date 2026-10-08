@@ -220,12 +220,12 @@ struct ContentView: View {
                 .foregroundStyle(.white.opacity(0.72))
                 .multilineTextAlignment(.center)
 
-            Text("Our Telegram channels")
+            Text("Our TikTok channels")
                 .font(.system(size: 10, weight: .semibold, design: .rounded))
                 .foregroundStyle(AppTheme.secondaryAccent.opacity(0.85))
 
             HStack(spacing: 10) {
-                channelButton(title: "VOLCANO Telegram", url: "https://t.me/volcano16x")
+                channelButton(title: "VOLCANO TikTok", url: "https://www.tiktok.com/@volcano16x")
             }
         }
         .frame(maxWidth: .infinity)
