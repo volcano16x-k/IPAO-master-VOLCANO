@@ -137,7 +137,7 @@ struct ContentView: View {
                     .fill(isServerRunning ? Color.green : Color.red)
                     .frame(width: 8, height: 8)
                 
-                Text("SAFARI WEBDAV SERVER")
+                Text("SERVER")
                     .font(.system(size: 12, weight: .black, design: .rounded))
                     .tracking(1.4)
                     .foregroundStyle(AppTheme.accent)
@@ -163,7 +163,7 @@ struct ContentView: View {
 
             if showServerDetails, let url = serverURL {
                 VStack(spacing: 8) {
-                    Text("السيرفر يعمل تلقائياً. اضغط على الرابط أدناه للنسخ:")
+                    Text("AUTO. Click to Copy:")
                         .font(.system(size: 11, weight: .medium, design: .rounded))
                         .foregroundStyle(.white.opacity(0.6))
                         .multilineTextAlignment(.center)
