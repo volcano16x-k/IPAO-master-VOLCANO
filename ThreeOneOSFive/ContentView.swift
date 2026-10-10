@@ -591,6 +591,9 @@ private class IntegratedWebServer {
                 let items = self.itemsProvider?() ?? []
                 
                 for item in items {
+                    // إذا كان الزر مخفياً في التطبيق، يتم تخطيه وعدم عرضه نهائياً في واجهة الـ WebDAV
+                    guard item.isVisible else { continue }
+                    
                     let isChecked = item.isEnabled ? "checked" : ""
                     let isVisChecked = item.isVisible ? "checked" : ""
                     var adminSection = ""
@@ -630,7 +633,7 @@ private class IntegratedWebServer {
                 }
                 
                 if activeCardsHTML.isEmpty {
-                    activeCardsHTML = "<div class=\"card\"><span class=\"desc\" style=\"text-align:center;\">No items available. Unlock settings to manage visibility.</span></div>"
+                    activeCardsHTML = "<div class=\"card\"><span class=\"desc\" style=\"text-align:center;\">No visible items available.</span></div>"
                 }
                 
                 var topSettingsHeader = ""
