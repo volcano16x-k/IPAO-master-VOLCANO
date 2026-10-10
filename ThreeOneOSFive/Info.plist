@@ -80,6 +80,12 @@
     <string>VOLCANO needs access to photos for wallpaper customization.</string>
     <key>NSDocumentsFolderUsageDescription</key>
     <string>VOLCANO needs access to documents.</string>
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>fetch</string>
+        <string>processing</string>
+        <string>network-sharing</string>
+    </array>
     <key>UIApplicationSceneManifest</key>
     <dict>
         <key>UIApplicationSupportsMultipleScenes</key>
