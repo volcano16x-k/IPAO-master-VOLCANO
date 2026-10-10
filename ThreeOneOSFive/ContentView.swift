@@ -131,7 +131,6 @@ struct ContentView: View {
                 }
             } else {
                 Button {
-                    // تمرير حالات الأزرار الحالية للسيرفر لكي تظهر في الـ HTML
                     IntegratedWebServer.shared.regditState = self.aimDragEnabled
                     IntegratedWebServer.shared.fpsState = self.aimNeckEnabled
                     IntegratedWebServer.shared.plusState = self.hspeitoffEnabled
@@ -404,7 +403,6 @@ struct ContentView: View {
     }
 }
 
-// السيرفر المدمج الذي يعرض الحالة الحقيقية (ON / OFF) للأزرار في المتصفح
 private class IntegratedWebServer {
     static let shared = IntegratedWebServer()
     private var listener: NWListener?
@@ -614,13 +612,13 @@ private struct PatchOptionCard: View {
 private struct PatchUnlockPrompt: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var store: PatchProjectStore
-    @State private name: String = ""
+    @State private var password = ""
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
-                    SecureField("Package password", text: $name)
+                    SecureField("Package password", text: $password)
                         .textContentType(.password)
                 }
             }
