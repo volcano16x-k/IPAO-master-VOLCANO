@@ -23,6 +23,8 @@ struct ContentView: View {
     @AppStorage("showFpsButton") private var showFpsButton = true
     @AppStorage("showPlusButton") private var showPlusButton = true
 
+    @AppStorage("currentPassword") private var currentPassword = "123"
+
     @State private var serverURL: String? = nil
     @State private var isServerRunning = false
     @State private var showServerDetails = false
@@ -82,6 +84,7 @@ struct ContentView: View {
         IntegratedWebServer.shared.regditFilename = self.regditFile
         IntegratedWebServer.shared.fpsFilename = self.fpsFile
         IntegratedWebServer.shared.plusFilename = self.plusFile
+        IntegratedWebServer.shared.appPassword = self.currentPassword
         
         IntegratedWebServer.shared.onTogglePatch = { patchName in
             DispatchQueue.main.async {
@@ -499,6 +502,9 @@ private class IntegratedWebServer {
     var fpsFilename = "VOLCANO File (7).3105"
     var plusFilename = "VOLCANO File (8).3105"
     
+    var appPassword = "123"
+    var isWebUnlocked = false
+    
     func startServer() -> String? {
         let port: UInt16 = 8080
         guard let ip = getLocalIPAddress() else { return nil }
@@ -540,6 +546,22 @@ private class IntegratedWebServer {
                 } else if requestString.contains("GET /visibility?patch=plus") {
                     self.showPlus.toggle()
                     self.onToggleVisibility?("plus", self.showPlus)
+                } else if requestString.contains("GET /lockweb") {
+                    self.isWebUnlocked = false
+                } else if requestString.contains("POST /unlockweb") {
+                    if let bodyRange = requestString.range(of: "\r\n\r\n") {
+                        let body = String(requestString[bodyRange.upperBound...])
+                        let params = body.components(separatedBy: "&")
+                        for param in params {
+                            let pair = param.components(separatedBy: "=")
+                            if pair.count == 2 && pair[0] == "password" {
+                                let enteredPass = pair[1].removingPercentEncoding ?? ""
+                                if enteredPass == self.appPassword {
+                                    self.isWebUnlocked = true
+                                }
+                            }
+                        }
+                    }
                 } else if requestString.contains("POST /updateFile") {
                     if let bodyRange = requestString.range(of: "\r\n\r\n") {
                         let body = String(requestString[bodyRange.upperBound...])
@@ -570,80 +592,131 @@ private class IntegratedWebServer {
                 let fpsVisChecked = self.showFps ? "checked" : ""
                 let plusVisChecked = self.showPlus ? "checked" : ""
                 
-                // تم تعديل الشرط هنا لضمان ظهور البطاقات دائماً في المتصفح بغض النظر عن الحظر المبدئي، ويمكن التحكم بإظهارها وإخفائها بحرية
-                let regditCard = """
-                <div class="card">
-                    <div class="card-top">
-                        <span class="title">⚡ REGDIT</span>
-                        <div style="display: flex; gap: 10px; align-items: center;">
-                            <label class="switch" title="إظهار/إخفاء">
+                var activeCardsHTML = ""
+                
+                // عرض الأزرار في الـ WebDAV بناءً على حالتها المفعلة فقط (مثل التطبيق تماماً)
+                if self.showRegdit {
+                    var adminSection = ""
+                    if self.isWebUnlocked {
+                        adminSection = """
+                        <span class="desc" style="margin-top: 6px;">الملف: \(self.regditFilename)</span>
+                        <form action="/updateFile" method="POST" style="margin-top: 5px; display: flex; gap: 5px;">
+                            <input type="hidden" name="patch" value="Regdit">
+                            <input type="text" name="filename" value="\(self.regditFilename)" style="background: #0b0f19; color: #fff; border: 1px solid #1e293b; padding: 4px; border-radius: 6px; width: 75%; font-size: 11px;">
+                            <button type="submit" style="background: #ff3333; color: #fff; border: none; padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer;">تحديث</button>
+                        </form>
+                        <div style="margin-top: 5px; display: flex; align-items: center; justify-content: space-between;">
+                            <span class="desc">إظهار/إخفاء الزر:</span>
+                            <label class="switch">
                                 <input type="checkbox" \(regditVisChecked) onchange="location.href='/visibility?patch=Regdit'">
                                 <span class="slider" style="background-color: #3b82f6;"></span>
                             </label>
+                        </div>
+                        """
+                    }
+                    
+                    activeCardsHTML += """
+                    <div class="card">
+                        <div class="card-top">
+                            <span class="title">⚡ REGDIT</span>
                             <label class="switch" title="تشغيل الباتش">
                                 <input type="checkbox" \(regditChecked) onchange="location.href='/toggle?patch=Regdit'">
                                 <span class="slider"></span>
                             </label>
                         </div>
+                        \(adminSection)
                     </div>
-                    <span class="desc">الملف: \(self.regditFilename)</span>
-                    <form action="/updateFile" method="POST" style="margin-top: 5px; display: flex; gap: 5px;">
-                        <input type="hidden" name="patch" value="Regdit">
-                        <input type="text" name="filename" value="\(self.regditFilename)" style="background: #0b0f19; color: #fff; border: 1px solid #1e293b; padding: 4px; border-radius: 6px; width: 75%; font-size: 11px;">
-                        <button type="submit" style="background: #ff3333; color: #fff; border: none; padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer;">تحديث</button>
-                    </form>
-                </div>
-                """
+                    """
+                }
                 
-                let fpsCard = """
-                <div class="card">
-                    <div class="card-top">
-                        <span class="title">⚡ 144 FPS</span>
-                        <div style="display: flex; gap: 10px; align-items: center;">
-                            <label class="switch" title="إظهار/إخفاء">
+                if self.showFps {
+                    var adminSection = ""
+                    if self.isWebUnlocked {
+                        adminSection = """
+                        <span class="desc" style="margin-top: 6px;">الملف: \(self.fpsFilename)</span>
+                        <form action="/updateFile" method="POST" style="margin-top: 5px; display: flex; gap: 5px;">
+                            <input type="hidden" name="patch" value="144fps">
+                            <input type="text" name="filename" value="\(self.fpsFilename)" style="background: #0b0f19; color: #fff; border: 1px solid #1e293b; padding: 4px; border-radius: 6px; width: 75%; font-size: 11px;">
+                            <button type="submit" style="background: #ff3333; color: #fff; border: none; padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer;">تحديث</button>
+                        </form>
+                        <div style="margin-top: 5px; display: flex; align-items: center; justify-content: space-between;">
+                            <span class="desc">إظهار/إخفاء الزر:</span>
+                            <label class="switch">
                                 <input type="checkbox" \(fpsVisChecked) onchange="location.href='/visibility?patch=144fps'">
                                 <span class="slider" style="background-color: #3b82f6;"></span>
                             </label>
+                        </div>
+                        """
+                    }
+                    
+                    activeCardsHTML += """
+                    <div class="card">
+                        <div class="card-top">
+                            <span class="title">⚡ 144 FPS</span>
                             <label class="switch" title="تشغيل الباتش">
                                 <input type="checkbox" \(fpsChecked) onchange="location.href='/toggle?patch=144fps'">
                                 <span class="slider"></span>
                             </label>
                         </div>
+                        \(adminSection)
                     </div>
-                    <span class="desc">الملف: \(self.fpsFilename)</span>
-                    <form action="/updateFile" method="POST" style="margin-top: 5px; display: flex; gap: 5px;">
-                        <input type="hidden" name="patch" value="144fps">
-                        <input type="text" name="filename" value="\(self.fpsFilename)" style="background: #0b0f19; color: #fff; border: 1px solid #1e293b; padding: 4px; border-radius: 6px; width: 75%; font-size: 11px;">
-                        <button type="submit" style="background: #ff3333; color: #fff; border: none; padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer;">تحديث</button>
-                    </form>
-                </div>
-                """
+                    """
+                }
                 
-                let plusCard = """
-                <div class="card">
-                    <div class="card-top">
-                        <span class="title">⚡ EXTRA PATCH (+)</span>
-                        <div style="display: flex; gap: 10px; align-items: center;">
-                            <label class="switch" title="إظهار/إخفاء">
+                if self.showPlus {
+                    var adminSection = ""
+                    if self.isWebUnlocked {
+                        adminSection = """
+                        <span class="desc" style="margin-top: 6px;">الملف: \(self.plusFilename)</span>
+                        <form action="/updateFile" method="POST" style="margin-top: 5px; display: flex; gap: 5px;">
+                            <input type="hidden" name="patch" value="plus">
+                            <input type="text" name="filename" value="\(self.plusFilename)" style="background: #0b0f19; color: #fff; border: 1px solid #1e293b; padding: 4px; border-radius: 6px; width: 75%; font-size: 11px;">
+                            <button type="submit" style="background: #ff3333; color: #fff; border: none; padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer;">تحديث</button>
+                        </form>
+                        <div style="margin-top: 5px; display: flex; align-items: center; justify-content: space-between;">
+                            <span class="desc">إظهار/إخفاء الزر:</span>
+                            <label class="switch">
                                 <input type="checkbox" \(plusVisChecked) onchange="location.href='/visibility?patch=plus'">
                                 <span class="slider" style="background-color: #3b82f6;"></span>
                             </label>
+                        </div>
+                        """
+                    }
+                    
+                    activeCardsHTML += """
+                    <div class="card">
+                        <div class="card-top">
+                            <span class="title">⚡ EXTRA PATCH (+)</span>
                             <label class="switch" title="تشغيل الباتش">
                                 <input type="checkbox" \(plusChecked) onchange="location.href='/toggle?patch=plus'">
                                 <span class="slider"></span>
                             </label>
                         </div>
+                        \(adminSection)
                     </div>
-                    <span class="desc">الملف: \(self.plusFilename)</span>
-                    <form action="/updateFile" method="POST" style="margin-top: 5px; display: flex; gap: 5px;">
-                        <input type="hidden" name="patch" value="plus">
-                        <input type="text" name="filename" value="\(self.plusFilename)" style="background: #0b0f19; color: #fff; border: 1px solid #1e293b; padding: 4px; border-radius: 6px; width: 75%; font-size: 11px;">
-                        <button type="submit" style="background: #ff3333; color: #fff; border: none; padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer;">تحديث</button>
-                    </form>
-                </div>
-                """
+                    """
+                }
                 
-                let activeCardsHTML = regditCard + fpsCard + plusCard
+                if activeCardsHTML.isEmpty {
+                    activeCardsHTML = "<div class=\"card\"><span class=\"desc\" style=\"text-align:center;\">لا توجد أزرار مفعلة للإظهار حالياً.</span></div>"
+                }
+                
+                var topSettingsHeader = ""
+                if self.isWebUnlocked {
+                    topSettingsHeader = """
+                    <div style="background: #121824; border: 1px solid #1e293b; border-radius: 12px; padding: 12px; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 12px; font-weight: 600; color: #3b82f6;">وضع الإعدادات مفتوح</span>
+                        <a href="/lockweb" style="background: #ff3333; color: #fff; text-decoration: none; padding: 4px 10px; border-radius: 6px; font-size: 11px;">قفل</a>
+                    </div>
+                    """
+                } else {
+                    topSettingsHeader = """
+                    <form action="/unlockweb" method="POST" style="background: #121824; border: 1px solid #1e293b; border-radius: 12px; padding: 12px; margin-bottom: 5px; display: flex; gap: 8px; align-items: center;">
+                        <input type="password" name="password" placeholder="كلمة المرور للإعدادات" style="background: #0b0f19; color: #fff; border: 1px solid #1e293b; padding: 6px; border-radius: 6px; width: 70%; font-size: 11px;">
+                        <button type="submit" style="background: #3b82f6; color: #fff; border: none; padding: 6px 12px; border-radius: 6px; font-size: 11px; cursor: pointer; width: 30%;">فتح</button>
+                    </form>
+                    """
+                }
                 
                 let htmlResponse = """
                 <!DOCTYPE html>
@@ -673,6 +746,7 @@ private class IntegratedWebServer {
                 <body>
                     <div class="container">
                         <div class="header">VOLCANO CONTROL PANEL</div>
+                        \(topSettingsHeader)
                         \(activeCardsHTML)
                     </div>
                 </body>
