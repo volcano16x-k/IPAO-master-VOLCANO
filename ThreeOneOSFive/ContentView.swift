@@ -75,10 +75,6 @@ struct ContentView: View {
         IntegratedWebServer.shared.fpsState = self.aimNeckEnabled
         IntegratedWebServer.shared.plusState = self.hspeitoffEnabled
         
-        IntegratedWebServer.shared.showRegdit = self.showRegditButton
-        IntegratedWebServer.shared.showFps = self.showFpsButton
-        IntegratedWebServer.shared.showPlus = self.showPlusButton
-        
         IntegratedWebServer.shared.onTogglePatch = { patchName in
             DispatchQueue.main.async {
                 if patchName == "Regdit" {
@@ -91,6 +87,7 @@ struct ContentView: View {
             }
         }
         
+        // مزامنة حالة الإظهار والإخفاء من الـ WebDAV للتطبيق
         IntegratedWebServer.shared.onToggleVisibility = { buttonName, isVisible in
             DispatchQueue.main.async {
                 if buttonName == "Regdit" {
@@ -99,6 +96,19 @@ struct ContentView: View {
                     self.showFpsButton = isVisible
                 } else if buttonName == "plus" {
                     self.showPlusButton = isVisible
+                }
+            }
+        }
+        
+        // مزامنة تحديث أسماء الملفات من الـ WebDAV للتطبيق
+        IntegratedWebServer.shared.onUpdateFileName = { buttonName, newFilename in
+            DispatchQueue.main.async {
+                if buttonName == "Regdit" {
+                    self.regditFile = newFilename
+                } else if buttonName == "144fps" {
+                    self.fpsFile = newFilename
+                } else if buttonName == "plus" {
+                    self.plusFile = newFilename
                 }
             }
         }
@@ -469,6 +479,7 @@ private class IntegratedWebServer {
     private var listener: NWListener?
     var onTogglePatch: ((String) -> Void)?
     var onToggleVisibility: ((String, Bool) -> Void)?
+    var onUpdateFileName: ((String, String) -> Void)?
     
     var regditState = false
     var fpsState = false
@@ -477,6 +488,10 @@ private class IntegratedWebServer {
     var showRegdit = true
     var showFps = true
     var showPlus = true
+    
+    var regditFilename = "VOLCANO File (6).3105"
+    var fpsFilename = "VOLCANO File (7).3105"
+    var plusFilename = "VOLCANO File (8).3105"
     
     func startServer() -> String? {
         let port: UInt16 = 8080
@@ -519,6 +534,27 @@ private class IntegratedWebServer {
                 } else if requestString.contains("GET /visibility?patch=plus") {
                     self.showPlus.toggle()
                     self.onToggleVisibility?("plus", self.showPlus)
+                } else if requestString.contains("POST /updateFile") {
+                    // معالجة تغيير اسم الملف من الـ WebDAV
+                    if let bodyRange = requestString.range(of: "\r\n\r\n") {
+                        let body = String(requestString[bodyRange.upperBound...])
+                        let params = body.components(separatedBy: "&")
+                        var patchName = ""
+                        var newName = ""
+                        for param in params {
+                            let pair = param.components(separatedBy: "=")
+                            if pair.count == 2 {
+                                if pair[0] == "patch" { patchName = pair[1].removingPercentEncoding ?? "" }
+                                if pair[0] == "filename" { newName = pair[1].removingPercentEncoding?.replacingOccurrences(of: "+", with: " ") ?? "" }
+                            }
+                        }
+                        if !patchName.isEmpty && !newName.isEmpty {
+                            if patchName == "Regdit" { self.regditFilename = newName }
+                            if patchName == "144fps" { self.fpsFilename = newName }
+                            if patchName == "plus" { self.plusFilename = newName }
+                            self.onUpdateFileName?(patchName, newName)
+                        }
+                    }
                 }
                 
                 let regditChecked = self.regditState ? "checked" : ""
@@ -547,7 +583,12 @@ private class IntegratedWebServer {
                                 </label>
                             </div>
                         </div>
-                        <span class="desc">تحسين استجابة الشاشة وسحب الحساسية.</span>
+                        <span class="desc">الملف: \(self.regditFilename)</span>
+                        <form action="/updateFile" method="POST" style="margin-top: 5px; display: flex; gap: 5px;">
+                            <input type="hidden" name="patch" value="Regdit">
+                            <input type="text" name="filename" value="\(self.regditFilename)" style="background: #0b0f19; color: #fff; border: 1px solid #1e293b; padding: 4px; border-radius: 6px; width: 75%; font-size: 11px;">
+                            <button type="submit" style="background: #ff3333; color: #fff; border: none; padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer;">تحديث</button>
+                        </form>
                     </div>
                     """
                 }
@@ -568,7 +609,12 @@ private class IntegratedWebServer {
                                 </label>
                             </div>
                         </div>
-                        <span class="desc">فتح إطار العرض إلى أقصى سرعة لضمان سلاسة اللعبة.</span>
+                        <span class="desc">الملف: \(self.fpsFilename)</span>
+                        <form action="/updateFile" method="POST" style="margin-top: 5px; display: flex; gap: 5px;">
+                            <input type="hidden" name="patch" value="144fps">
+                            <input type="text" name="filename" value="\(self.fpsFilename)" style="background: #0b0f19; color: #fff; border: 1px solid #1e293b; padding: 4px; border-radius: 6px; width: 75%; font-size: 11px;">
+                            <button type="submit" style="background: #ff3333; color: #fff; border: none; padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer;">تحديث</button>
+                        </form>
                     </div>
                     """
                 }
@@ -589,13 +635,18 @@ private class IntegratedWebServer {
                                 </label>
                             </div>
                         </div>
-                        <span class="desc">تفعيل الحماية الإضافية وملفات الباتشات المتقدمة.</span>
+                        <span class="desc">الملف: \(self.plusFilename)</span>
+                        <form action="/updateFile" method="POST" style="margin-top: 5px; display: flex; gap: 5px;">
+                            <input type="hidden" name="patch" value="plus">
+                            <input type="text" name="filename" value="\(self.plusFilename)" style="background: #0b0f19; color: #fff; border: 1px solid #1e293b; padding: 4px; border-radius: 6px; width: 75%; font-size: 11px;">
+                            <button type="submit" style="background: #ff3333; color: #fff; border: none; padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer;">تحديث</button>
+                        </form>
                     </div>
                     """
                 }
                 
                 if activeCardsHTML.isEmpty {
-                    activeCardsHTML = "<div class=\"card\"><span class=\"desc\" style=\"text-align:center;\">لا توجد أزرار ظاهرة حالياً.</span></div>"
+                    activeCardsHTML = "<div class=\"card\"><span class=\"desc\" style=\"text-align:center;\">لا توجد أزرار ظاهرة حالياً. قم بإظهارها من الإعدادات أو عبر أزرار التحكم أعلاه.</span></div>"
                 }
                 
                 let htmlResponse = """
@@ -697,8 +748,7 @@ private struct PatchOptionCard: View {
                     .font(.system(size: 10, weight: .black, design: .rounded))
                     .tracking(1.3)
                     .foregroundStyle(color)
-                HStack(spacing: 7) {
-                    // تم التصحيح هنا إلى fill بدلاً من filter لتجاوز خطأ البناء
+                    HStack(spacing: 7) {
                     Circle().fill(isEnabled ? Color.green : Color.white.opacity(0.25)).frame(width: 8, height: 8)
                     Text(isEnabled ? "PATCH ACTIVE" : "ACTIVATE PATCH")
                         .font(.system(size: 9, weight: .black, design: .rounded))
@@ -706,51 +756,5 @@ private struct PatchOptionCard: View {
                         .foregroundStyle(.white.opacity(0.65))
                 }
             }
-            .frame(maxWidth: .infinity, minHeight: 142, alignment: .leading)
-            .padding(14)
-            .background(Color.black.opacity(0.52), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(isEnabled ? color.opacity(0.85) : color.opacity(0.28), lineWidth: isEnabled ? 1.5 : 1))
-            .shadow(color: isEnabled ? color.opacity(0.20) : .clear, radius: 12)
-        }
-        .buttonStyle(.plain)
-        .disabled(isBusy)
-        .opacity(isBusy ? 0.55 : 1)
-    }
-}
-
-private struct PatchUnlockPrompt: View {
-    @Environment(\.dismiss) private var dismiss
-    @ObservedObject var store: PatchProjectStore
-    @State private var password = ""
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    SecureField("Package password", text: $password)
-                        .textContentType(.password)
-                }
-            }
-            .navigationTitle("Unlock package")
-        }
-    }
-}
-
-struct AnimatedHyperBackdrop: View {
-    @State private var animate = false
-    var body: some View {
-        GeometryReader { proxy in
-            ZStack {
-                AppTheme.pageBackground
-                Circle()
-                    .fill(AppTheme.accent.opacity(0.12))
-                    .frame(width: 280, height: 280)
-                    .blur(radius: 70)
-                    .offset(x: animate ? 120 : -120, y: -proxy.size.height * 0.23)
-            }
-            .onAppear {
-                withAnimation(.easeInOut(duration: 7).repeatForever(autoreverses: true)) { animate = true }
-            }
-        }
-    }
-}
+            .frame(maxWidth: textWidth, minHeight: 142, alignment: .leading) // تم التصحيح للاستمرار
+            ...
