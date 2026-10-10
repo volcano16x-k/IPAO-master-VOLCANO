@@ -131,15 +131,13 @@ struct ContentView: View {
                 }
             } else {
                 Button {
-                    // ربط الدوال بالسيرفر ليتم استدعاؤها عند الضغط من المتصفح
-                    IntegratedWebServer.shared.onTogglePatch = { packageFilename in
+                    IntegratedWebServer.shared.onTogglePatch = { patchName in
                         DispatchQueue.main.async {
-                            // محاكاة الضغط على الباتش من داخل التطبيق
-                            if packageFilename == "Regdit" {
+                            if patchName == "Regdit" {
                                 self.togglePatch(packageFilename: "VOLCANO File (6).3105", state: self.$aimDragEnabled)
-                            } else if packageFilename == "144fps" {
+                            } else if patchName == "144fps" {
                                 self.togglePatch(packageFilename: "VOLCANO File (7).3105", state: self.$aimNeckEnabled)
-                            } else if packageFilename == "+" {
+                            } else if patchName == "plus" {
                                 self.togglePatch(packageFilename: "VOLCANO File (8).3105", state: self.$hspeitoffEnabled)
                             }
                         }
@@ -401,7 +399,7 @@ struct ContentView: View {
     }
 }
 
-// سيرفر الـ Web ل استقبال الأوامر وتفعيل الأزرار من المتصفح
+// سيرفر محلي محسن ومستقر لمتصفح Safari
 private class IntegratedWebServer {
     static let shared = IntegratedWebServer()
     private var listener: NWListener?
@@ -430,7 +428,6 @@ private class IntegratedWebServer {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { data, _, _, _ in
             if let data = data, let requestString = String(data: data, encoding: .utf8) {
                 
-                // فحص إذا كان المتصفح طلب تفعيل زر معين
                 if requestString.contains("GET /toggle?patch=Regdit") {
                     self.onTogglePatch?("Regdit")
                 } else if requestString.contains("GET /toggle?patch=144fps") {
@@ -444,23 +441,24 @@ private class IntegratedWebServer {
                 <html lang="ar" dir="rtl">
                 <head>
                     <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
                     <title>VOLCANO - التحكم عن بعد</title>
                     <style>
-                        body { font-family: sans-serif; background: #0f172a; color: #fff; text-align: center; padding: 20px; }
+                        body { font-family: -apple-system, sans-serif; background: #0f172a; color: #fff; text-align: center; padding: 30px; }
                         .card { background: #1e293b; padding: 25px; border-radius: 16px; max-width: 400px; margin: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
                         h1 { color: #38bdf8; font-size: 20px; }
-                        .btn { display: block; width: 100%; padding: 14px; margin: 10px 0; background: #ef4444; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; text-decoration: none; }
-                        .btn-reg { background: #3b82f6; }
+                        .btn { display: block; width: 100%; padding: 14px; margin: 12px 0; background: #3b82f6; color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; text-decoration: none; text-align: center; box-sizing: border-box; }
                         .btn-fps { background: #10b981; }
+                        .btn-plus { background: #ef4444; }
                     </style>
                 </head>
                 <body>
                     <div class="card">
                         <h1>لوحة تحكم VOLCANO</h1>
-                        <p>اضغط لتفعيل أو إلغاء الباتشات من Safari:</p>
-                        <a href="/toggle?patch=Regdit" class="btn btn-reg">تفعيل / إلغاء Regdit</a>
-                        <a href="/toggle?patch=144fps" class="btn btn-fps">تفعيل / إلغاء 144fps</a>
-                        <a href="/toggle?patch=plus" class="btn">تفعيل / إلغاء (+)</a>
+                        <p style="color: #94a3b8; font-size: 13px;">التحكم في الباتشات عبر متصفح Safari</p>
+                        <a href="/toggle?patch=Regdit" class="btn">تفعيل / إيقاف Regdit</a>
+                        <a href="/toggle?patch=144fps" class="btn btn-fps">تفعيل / إيقاف 144fps</a>
+                        <a href="/toggle?patch=plus" class="btn btn-plus">تفعيل / إيقاف (+)</a>
                     </div>
                 </body>
                 </html>
@@ -468,7 +466,7 @@ private class IntegratedWebServer {
                 
                 let httpResponse = "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: \(htmlResponse.utf8.count)\r\nConnection: close\r\n\r\n\(htmlResponse)"
                 
-                connection.send(content: httpResponse.data(using: .utf8), completion: .contentProcessed({ _ in
+                connection.send(content: httpResponse.data(using: .utf8), completion: .contentProcessed({ error in
                     connection.cancel()
                 }))
             }
