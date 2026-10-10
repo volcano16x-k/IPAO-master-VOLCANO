@@ -15,10 +15,14 @@ struct ContentView: View {
     @State private var aimNeckEnabled = false
     @State private var hspeitoffEnabled = false
 
-    // جلب أسماء الملفات المحدثة من الإعدادات
+    // جلب أسماء الملفات وحالات الإظهار/الإخفاء من الإعدادات
     @AppStorage("regditFile") private var regditFile = "VOLCANO File (6).3105"
     @AppStorage("fpsFile") private var fpsFile = "VOLCANO File (7).3105"
     @AppStorage("plusFile") private var plusFile = "VOLCANO File (8).3105"
+
+    @AppStorage("showRegditButton") private var showRegditButton = true
+    @AppStorage("showFpsButton") private var showFpsButton = true
+    @AppStorage("showPlusButton") private var showPlusButton = true
 
     @State private var serverURL: String? = nil
     @State private var isServerRunning = false
@@ -71,6 +75,10 @@ struct ContentView: View {
         IntegratedWebServer.shared.regditState = self.aimDragEnabled
         IntegratedWebServer.shared.fpsState = self.aimNeckEnabled
         IntegratedWebServer.shared.plusState = self.hspeitoffEnabled
+        
+        IntegratedWebServer.shared.showRegdit = self.showRegditButton
+        IntegratedWebServer.shared.showFps = self.showFpsButton
+        IntegratedWebServer.shared.showPlus = self.showPlusButton
         
         IntegratedWebServer.shared.onTogglePatch = { patchName in
             DispatchQueue.main.async {
@@ -207,9 +215,15 @@ struct ContentView: View {
             }
 
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
-                patchCard(name: "Regdit", target: "FREE FIRE • NORMAL", package: regditFile, color: AppTheme.accent, state: $aimDragEnabled)
-                patchCard(name: "144fps", target: "FREE FIRE • NORMAL", package: fpsFile, color: AppTheme.secondaryAccent, state: $aimNeckEnabled)
-                patchCard(name: "+", target: "FREE FIRE • NORMAL", package: plusFile, color: AppTheme.secondaryAccent, state: $hspeitoffEnabled)
+                if showRegditButton {
+                    patchCard(name: "Regdit", target: "FREE FIRE • NORMAL", package: regditFile, color: AppTheme.accent, state: $aimDragEnabled)
+                }
+                if showFpsButton {
+                    patchCard(name: "144fps", target: "FREE FIRE • NORMAL", package: fpsFile, color: AppTheme.secondaryAccent, state: $aimNeckEnabled)
+                }
+                if showPlusButton {
+                    patchCard(name: "+", target: "FREE FIRE • NORMAL", package: plusFile, color: AppTheme.secondaryAccent, state: $hspeitoffEnabled)
+                }
             }
 
             HStack(spacing: 8) {
@@ -448,6 +462,10 @@ private class IntegratedWebServer {
     var fpsState = false
     var plusState = false
     
+    var showRegdit = true
+    var showFps = true
+    var showPlus = true
+    
     func startServer() -> String? {
         let port: UInt16 = 8080
         guard let ip = getLocalIPAddress() else { return nil }
@@ -488,7 +506,8 @@ private class IntegratedWebServer {
                 
                 var activeCardsHTML = ""
                 
-                if self.regditState {
+                // عرض الزر في سيرفر الـ WebDAV فقط إذا كان مُمكّناً للإظهار من الإعدادات
+                if self.showRegdit {
                     activeCardsHTML += """
                     <div class="card">
                         <div class="card-top">
@@ -503,7 +522,7 @@ private class IntegratedWebServer {
                     """
                 }
                 
-                if self.fpsState {
+                if self.showFps {
                     activeCardsHTML += """
                     <div class="card">
                         <div class="card-top">
@@ -518,7 +537,7 @@ private class IntegratedWebServer {
                     """
                 }
                 
-                if self.plusState {
+                if self.showPlus {
                     activeCardsHTML += """
                     <div class="card">
                         <div class="card-top">
@@ -534,7 +553,7 @@ private class IntegratedWebServer {
                 }
                 
                 if activeCardsHTML.isEmpty {
-                    activeCardsHTML = "<div class=\"card\"><span class=\"desc\" style=\"text-align:center;\">لا توجد أزرار مفعلة حالياً.</span></div>"
+                    activeCardsHTML = "<div class=\"card\"><span class=\"desc\" style=\"text-align:center;\">لا توجد أزرار مفعلة للإظهار حالياً.</span></div>"
                 }
                 
                 let htmlResponse = """
