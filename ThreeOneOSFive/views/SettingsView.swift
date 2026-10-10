@@ -10,12 +10,10 @@ struct SettingsView: View {
     @AppStorage("isButtonsUnlocked") private var isButtonsUnlocked = false
     @AppStorage("currentPassword") private var currentPassword = "123"
     
-    // أسماء ملفات الـ 3105
     @AppStorage("regditFile") private var regditFile = "VOLCANO File (6).3105"
     @AppStorage("fpsFile") private var fpsFile = "VOLCANO File (7).3105"
     @AppStorage("plusFile") private var plusFile = "VOLCANO File (8).3105"
     
-    // حالات الإظهار والإخفاء للأزرار
     @AppStorage("showRegditButton") private var showRegditButton = true
     @AppStorage("showFpsButton") private var showFpsButton = true
     @AppStorage("showPlusButton") private var showPlusButton = true
@@ -27,7 +25,6 @@ struct SettingsView: View {
     @State private var showingChangePasswordSheet = false
     @State private var newPasswordInput = ""
     
-    // حالات لاختيار الملف المستهدف للرفع
     @State private var activeTargetButton: Int = 0
     @State private var showFileImporter = false
 
@@ -70,10 +67,8 @@ struct SettingsView: View {
                     }
                 }
 
-                // قسم إظهار/إخفاء ورفع ملفات الأزرار (.3105)
                 if isButtonsUnlocked {
                     Section(header: Text("تخصيص ورفع ملفات الأزرار (.3105)")) {
-                        // زر Regdit
                         VStack(alignment: .leading, spacing: 8) {
                             Toggle("إظهار زر Regdit", isOn: $showRegditButton)
                             HStack {
@@ -94,7 +89,6 @@ struct SettingsView: View {
                         
                         Divider()
                         
-                        // زر 144fps
                         VStack(alignment: .leading, spacing: 8) {
                             Toggle("إظهار زر 144fps", isOn: $showFpsButton)
                             HStack {
@@ -115,7 +109,6 @@ struct SettingsView: View {
                         
                         Divider()
                         
-                        // زر Extra Patch
                         VStack(alignment: .leading, spacing: 8) {
                             Toggle("إظهار زر EXTRA PATCH", isOn: $showPlusButton)
                             HStack {
@@ -170,7 +163,6 @@ struct SettingsView: View {
                         defer { selectedFile.stopAccessingSecurityScopedResource() }
                         let fileName = selectedFile.lastPathComponent
                         
-                        // حفظ الملف في مجلد المستندات وتحديث الاسم
                         let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
                         let destinationURL = documentsPath.appendingPathComponent(fileName)
                         
@@ -223,7 +215,7 @@ struct SettingsView: View {
                         if !newPasswordInput.isEmpty {
                             currentPassword = newPasswordInput
                             newPasswordInput = ""
-                            showingChangeParserSheet = false
+                            showingChangePasswordSheet = false
                         }
                     }
                     .buttonStyle(.borderedProminent)
