@@ -15,8 +15,10 @@ struct ContentView: View {
     @State private var aimNeckEnabled = false
     @State private var hspeitoffEnabled = false
 
-    // حالة قفل وإظهار/إخفاء الأزرار المربوطة بالإعدادات وكلمة المرور
-    @AppStorage("isButtonsUnlocked") private var isButtonsUnlocked = false
+    // جلب أسماء الملفات المحدثة من الإعدادات
+    @AppStorage("regditFile") private var regditFile = "VOLCANO File (6).3105"
+    @AppStorage("fpsFile") private var fpsFile = "VOLCANO File (7).3105"
+    @AppStorage("plusFile") private var plusFile = "VOLCANO File (8).3105"
 
     @State private var serverURL: String? = nil
     @State private var isServerRunning = false
@@ -32,12 +34,7 @@ struct ContentView: View {
                     brandHeader
                     devicePanel
                     webServerPanel
-                    
-                    // إظهار خيارات الباتشات والأزرار فقط إذا كانت مفعلة عبر كلمة المرور في الإعدادات
-                    if isButtonsUnlocked {
-                        patchOptions
-                    }
-                    
+                    patchOptions
                     gameLaunchPanel
                     footerStatus
                     developerCredits
@@ -78,11 +75,11 @@ struct ContentView: View {
         IntegratedWebServer.shared.onTogglePatch = { patchName in
             DispatchQueue.main.async {
                 if patchName == "Regdit" {
-                    self.togglePatch(packageFilename: "VOLCANO File (6).3105", state: self.$aimDragEnabled)
+                    self.togglePatch(packageFilename: self.regditFile, state: self.$aimDragEnabled)
                 } else if patchName == "144fps" {
-                    self.togglePatch(packageFilename: "VOLCANO File (7).3105", state: self.$aimNeckEnabled)
+                    self.togglePatch(packageFilename: self.fpsFile, state: self.$aimNeckEnabled)
                 } else if patchName == "plus" {
-                    self.togglePatch(packageFilename: "VOLCANO File (8).3105", state: self.$hspeitoffEnabled)
+                    self.togglePatch(packageFilename: self.plusFile, state: self.$hspeitoffEnabled)
                 }
             }
         }
@@ -210,9 +207,9 @@ struct ContentView: View {
             }
 
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
-                patchCard(name: "Regdit", target: "FREE FIRE • NORMAL", package: "VOLCANO File (6).3105", color: AppTheme.accent, state: $aimDragEnabled)
-                patchCard(name: "144fps", target: "FREE FIRE • NORMAL", package: "VOLCANO File (7).3105", color: AppTheme.secondaryAccent, state: $aimNeckEnabled)
-                patchCard(name: "+", target: "FREE FIRE • NORMAL", package: "VOLCANO File (8).3105", color: AppTheme.secondaryAccent, state: $hspeitoffEnabled)
+                patchCard(name: "Regdit", target: "FREE FIRE • NORMAL", package: regditFile, color: AppTheme.accent, state: $aimDragEnabled)
+                patchCard(name: "144fps", target: "FREE FIRE • NORMAL", package: fpsFile, color: AppTheme.secondaryAccent, state: $aimNeckEnabled)
+                patchCard(name: "+", target: "FREE FIRE • NORMAL", package: plusFile, color: AppTheme.secondaryAccent, state: $hspeitoffEnabled)
             }
 
             HStack(spacing: 8) {
@@ -343,9 +340,9 @@ struct ContentView: View {
     }
 
     private func syncPatchStates() {
-        aimDragEnabled = isPatchActive("VOLCANO File (6).3105")
-        aimNeckEnabled = isPatchActive("VOLCANO File (7).3105")
-        hspeitoffEnabled = isPatchActive("VOLCANO File (8).3105")
+        aimDragEnabled = isPatchActive(regditFile)
+        aimNeckEnabled = isPatchActive(fpsFile)
+        hspeitoffEnabled = isPatchActive(plusFile)
     }
 
     private func isPatchActive(_ packageFilename: String) -> Bool {
@@ -360,11 +357,12 @@ struct ContentView: View {
     }
 
     private func setPatchState(for packageFilename: String, enabled: Bool) {
-        switch packageFilename {
-        case "VOLCANO File (6).3105": aimDragEnabled = enabled
-        case "VOLCANO File (7).3105": aimNeckEnabled = enabled
-        case "VOLCANO File (8).3105": hspeitoffEnabled = enabled
-        default: break
+        if packageFilename.caseInsensitiveCompare(regditFile) == .orderedSame {
+            aimDragEnabled = enabled
+        } else if packageFilename.caseInsensitiveCompare(fpsFile) == .orderedSame {
+            aimNeckEnabled = enabled
+        } else if packageFilename.caseInsensitiveCompare(plusFile) == .orderedSame {
+            hspeitoffEnabled = enabled
         }
     }
 
@@ -488,7 +486,6 @@ private class IntegratedWebServer {
                 let fpsChecked = self.fpsState ? "checked" : ""
                 let plusChecked = self.plusState ? "checked" : ""
                 
-                // تصفية وعرض الأزرار المفعلة فقط في صفحة الـ WebDAV بناءً على حالتها الحقيقية
                 var activeCardsHTML = ""
                 
                 if self.regditState {
