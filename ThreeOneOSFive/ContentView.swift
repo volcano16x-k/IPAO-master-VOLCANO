@@ -19,7 +19,6 @@ struct ContentView: View {
     @AppStorage("fpsFile") private var fpsFile = "VOLCANO File (7).3105"
     @AppStorage("plusFile") private var plusFile = "VOLCANO File (8).3105"
 
-    // حالة قفل الاستخدام للزر عبر الـ WebDAV
     @AppStorage("lockRegditButton") private var lockRegditButton = false
     @AppStorage("lockFpsButton") private var lockFpsButton = false
     @AppStorage("lockPlusButton") private var lockPlusButton = false
@@ -91,7 +90,6 @@ struct ContentView: View {
                 else if patchID == "144fps" { isLocked = self.lockFpsButton }
                 else { isLocked = self.lockPlusButton }
                 
-                // إذا كان الزر مقفلاً، فلن يتم تنفيذ أمر التفعيل نهائياً
                 guard !isLocked else { return }
                 
                 if patchID == "Regdit" {
@@ -596,21 +594,21 @@ private class IntegratedWebServer {
                 for item in items {
                     let isChecked = item.isEnabled ? "checked" : ""
                     let isLockedChecked = item.isLocked ? "checked" : ""
-                    
-                    // إذا كان الزر مقفلاً، نضيف خاصية disabled لزر التبديل لكي لا يستجيب أبداً
                     let disabledAttr = item.isLocked ? "disabled style='opacity: 0.5; cursor: not-allowed;'" : ""
                     
                     var adminSection = ""
                     if self.isWebUnlocked {
                         adminSection = """
-                        <span class="desc" style="margin-top: 6px;">File: \(item.filename)</span>
-                        <form action="/updateFile" method="POST" style="margin-top: 5px; display: flex; gap: 5px;">
-                            <input type="hidden" name="patch" value="\(item.id)">
-                            <input type="text" name="filename" value="\(item.filename)" style="background: #0b0f19; color: #fff; border: 1px solid #1e293b; padding: 4px; border-radius: 6px; width: 75%; font-size: 11px;">
-                            <button type="submit" style="background: #ff3333; color: #fff; border: none; padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer;">Update</button>
-                        </form>
-                        <div style="margin-top: 6px; display: flex; align-items: center; justify-content: space-between;">
-                            <span class="desc">🔒 Lock Button Usage:</span>
+                        <div class="input-box" style="margin-top: 8px;">
+                            <label>TARGET FILE</label>
+                            <form action="/updateFile" method="POST" style="display: flex; gap: 5px;">
+                                <input type="hidden" name="patch" value="\(item.id)">
+                                <input type="text" name="filename" value="\(item.filename)">
+                                <button type="submit" class="action-button" style="margin-top:0; width: 35%; padding: 7px;">UPDATE</button>
+                            </form>
+                        </div>
+                        <div style="margin-top: 8px; display: flex; align-items: center; justify-content: space-between;">
+                            <span style="font-size: 9px; font-family: 'Roboto Mono', monospace; color: rgba(255,255,255,0.7);">🔒 LOCK BUTTON:</span>
                             <label class="switch">
                                 <input type="checkbox" \(isLockedChecked) onchange="location.href='/lock?patch=\(item.id)'">
                                 <span class="slider" style="background-color: #f59e0b;"></span>
@@ -620,17 +618,15 @@ private class IntegratedWebServer {
                     }
                     
                     activeCardsHTML += """
-                    <div class="card">
-                        <div class="card-top">
-                            <div>
-                                <span class="title">\(item.title)</span>
-                                \(item.isLocked ? "<div style='font-size: 9px; color: #f59e0b; margin-top: 2px;'>🔒 Locked (Inactive)</div>" : "")
-                            </div>
-                            <label class="switch" title="Toggle Patch">
+                    <div class="menu-option">
+                        <div class="option-title-container">
+                            <span class="option-title">\(item.title) \(item.isLocked ? "🔒" : "")</span>
+                            <label class="switch">
                                 <input type="checkbox" \(isChecked) \(disabledAttr) onchange="location.href='/toggle?patch=\(item.id)'">
                                 <span class="slider"></span>
                             </label>
                         </div>
+                        <div class="option-description">Status: \(item.isEnabled ? "ACTIVE" : "OFF") \(item.isLocked ? "| LOCKED" : "")</div>
                         \(adminSection)
                     </div>
                     """
@@ -639,22 +635,22 @@ private class IntegratedWebServer {
                 var topSettingsHeader = ""
                 if self.isWebUnlocked {
                     topSettingsHeader = """
-                    <div style="background: #121824; border: 1px solid #1e293b; border-radius: 16px; padding: 14px; margin-bottom: 5px; display: flex; flex-direction: column; gap: 10px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span style="font-size: 12px; font-weight: 600; color: #3b82f6;">Settings Unlocked</span>
-                            <a href="/lockweb" style="background: #ff3333; color: #fff; text-decoration: none; padding: 4px 10px; border-radius: 6px; font-size: 11px;">Lock</a>
+                    <div class="menu-option" style="background: rgba(59, 130, 246, 0.08); border-color: rgba(59, 130, 246, 0.3);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="font-size: 11px; font-weight: 600; color: #3b82f6;">SETTINGS UNLOCKED</span>
+                            <a href="/lockweb" style="background: #ff3333; color: #fff; text-decoration: none; padding: 4px 10px; border-radius: 6px; font-size: 9px; font-family: 'Roboto Mono', monospace;">LOCK</a>
                         </div>
                         <form action="/updatePassword" method="POST" style="display: flex; gap: 6px;">
-                            <input type="text" name="newpassword" placeholder="New Password" style="background: #0b0f19; color: #fff; border: 1px solid #1e293b; padding: 6px; border-radius: 6px; width: 70%; font-size: 11px;">
-                            <button type="submit" style="background: #22c55e; color: #fff; border: none; padding: 6px; border-radius: 6px; font-size: 11px; cursor: pointer; width: 30%;">Change Pass</button>
+                            <input type="text" name="newpassword" placeholder="New Password" style="width: 70%; padding: 7px; background: rgba(0,0,0,0.55); border: 1px solid rgba(255,40,40,0.18); color: white; border-radius: 7px; font-size: 9px; font-family: 'Roboto Mono', monospace;">
+                            <button type="submit" class="action-button" style="margin-top:0; width: 30%; padding: 7px;">CHANGE</button>
                         </form>
                     </div>
                     """
                 } else {
                     topSettingsHeader = """
-                    <form action="/unlockweb" method="POST" style="background: #121824; border: 1px solid #1e293b; border-radius: 16px; padding: 14px; margin-bottom: 5px; display: flex; gap: 8px; align-items: center;">
-                        <input type="password" name="password" placeholder="Settings Password" style="background: #0b0f19; color: #fff; border: 1px solid #1e293b; padding: 6px; border-radius: 6px; width: 70%; font-size: 11px;">
-                        <button type="submit" style="background: #3b82f6; color: #fff; border: none; padding: 6px 12px; border-radius: 6px; font-size: 11px; cursor: pointer; width: 30%;">Unlock</button>
+                    <form action="/unlockweb" method="POST" class="menu-option" style="display: flex; gap: 6px; align-items: center;">
+                        <input type="password" name="password" placeholder="Settings Password" style="width: 70%; padding: 7px; background: rgba(0,0,0,0.55); border: 1px solid rgba(255,40,40,0.18); color: white; border-radius: 7px; font-size: 9px; font-family: 'Roboto Mono', monospace;">
+                        <button type="submit" class="action-button" style="margin-top:0; width: 30%; padding: 7px;">UNLOCK</button>
                     </form>
                     """
                 }
@@ -663,33 +659,64 @@ private class IntegratedWebServer {
                 <!DOCTYPE html>
                 <html lang="en">
                 <head>
-                    <meta charset="UTF-8">
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <title>VOLCANO - Control Panel</title>
-                    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-                    <style>
-                        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
-                        body { background-color: #0b0f19; color: #fff; padding: 20px; display: flex; justify-content: center; }
-                        .container { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 14px; }
-                        .header { font-size: 18px; font-weight: 700; color: #ff3333; letter-spacing: 1px; margin-bottom: 5px; text-align: center; }
-                        .card { background: #121824; border: 1px solid #1e293b; border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
-                        .card-top { display: flex; justify-content: space-between; align-items: center; }
-                        .title { font-size: 15px; font-weight: 600; color: #ffffff; letter-spacing: 0.5px; }
-                        .desc { font-size: 11px; color: #94a3b8; line-height: 1.4; }
-                        .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
-                        .switch input { opacity: 0; width: 0; height: 0; }
-                        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #27272a; transition: .3s; border-radius: 24px; border: 1px solid #3f3f46; }
-                        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 2px; background-color: white; transition: .3s; border-radius: 50%; }
-                        input:checked + .slider { background-color: #ff3333; border-color: #ff3333; }
-                        input:checked + .slider:before { transform: translateX(20px); }
-                    </style>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>volcanoSENSI</title>
+                <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Roboto+Mono&display=swap" rel="stylesheet">
+                <style>
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                html, body { width: 100%; height: 100%; background: #000; }
+                body { display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; background: radial-gradient(circle at center, rgba(255,40,40,0.07), #000 70%); color: white; font-family: Poppins, Arial, sans-serif; user-select: none; }
+                .menu-container { width: 400px; height: 520px; position: absolute; display: flex; overflow: hidden; background: rgba(0,0,0,0.92); border: 1px solid rgba(255,40,40,0.4); border-radius: 16px; box-shadow: 0 0 18px rgba(255,40,40,0.35), 0 20px 60px rgba(0,0,0,0.85); backdrop-filter: blur(12px); }
+                #particles-js { position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: 0.5; }
+                .sidebar { width: 72px; min-width: 72px; height: 100%; padding: 13px 0; display: flex; flex-direction: column; align-items: center; background: rgba(0,0,0,0.5); border-right: 1px solid rgba(255,40,40,0.18); position: relative; z-index: 3; }
+                .logo-img { width: 48px; height: 48px; object-fit: cover; border-radius: 12px; border: 2px solid rgba(255,40,40,0.6); box-shadow: 0 0 12px rgba(255,40,40,0.5); margin-bottom: 14px; }
+                .main-content { flex: 1; height: 100%; padding: 14px; position: relative; z-index: 2; overflow-y: auto; }
+                .main-content::-webkit-scrollbar { width: 3px; }
+                .main-content::-webkit-scrollbar-thumb { background: rgba(255,40,40,0.4); border-radius: 10px; }
+                .menu-header { position: relative; overflow: hidden; padding: 10px; border-radius: 10px; border: 1px solid rgba(255,40,40,0.3); background: rgba(0,0,0,0.4); margin-bottom: 12px; }
+                .header-content { position: relative; display: flex; align-items: center; justify-content: space-between; }
+                .logo-container { display: flex; align-items: center; }
+                .verified-icon { width: 25px; height: 25px; object-fit: cover; border-radius: 50%; margin-right: 8px; border: 1px solid rgba(255,40,40,0.5); }
+                .main-title { color: #ff3030; font-size: 15px; font-weight: 600; text-shadow: 0 0 7px #ff3030; }
+                .sub-title { display: block; margin-top: 2px; color: rgba(255,255,255,0.5); font-family: Roboto Mono, monospace; font-size: 8px; }
+                .status { color: #ff3030; font-family: Roboto Mono, monospace; font-size: 8px; }
+                .menu-content { display: flex; flex-direction: column; gap: 9px; }
+                .menu-option { position: relative; padding: 12px; border-radius: 9px; background: rgba(255,40,40,0.035); border: 1px solid rgba(255,40,40,0.1); }
+                .option-title-container { display: flex; align-items: center; justify-content: space-between; }
+                .option-title { color: white; font-size: 12px; font-weight: 500; }
+                .option-description { margin-top: 5px; color: rgba(255,255,255,0.52); font-family: Roboto Mono, monospace; font-size: 8px; line-height: 1.5; }
+                .action-button { width: 100%; padding: 9px; margin-top: 8px; border-radius: 8px; color: #ff3030; background: rgba(255,40,40,0.08); border: 1px solid rgba(255,40,40,0.3); font-family: Poppins, sans-serif; font-size: 10px; font-weight: 600; cursor: pointer; }
+                .input-box label { display: block; margin-bottom: 3px; color: rgba(255,255,255,0.7); font-family: Roboto Mono, monospace; font-size: 8px; }
+                .input-box input { width: 100%; padding: 7px 9px; outline: none; border-radius: 7px; background: rgba(0,0,0,0.55); border: 1px solid rgba(255,40,40,0.18); color: white; font-family: Roboto Mono, monospace; font-size: 9px; }
+                .switch { position: relative; display: inline-block; width: 40px; height: 22px; }
+                .switch input { opacity: 0; width: 0; height: 0; }
+                .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #27272a; transition: .3s; border-radius: 22px; border: 1px solid #3f3f46; }
+                .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 2px; bottom: 2px; background-color: white; transition: .3s; border-radius: 50%; }
+                input:checked + .slider { background-color: #ff3333; border-color: #ff3333; }
+                input:checked + .slider:before { transform: translateX(18px); }
+                </style>
                 </head>
                 <body>
-                    <div class="container">
-                        <div class="header">VOLCANO CONTROL PANEL</div>
-                        \(topSettingsHeader)
-                        \(activeCardsHTML)
+                <div class="menu-container" id="menu">
+                    <div class="main-content">
+                        <header class="menu-header">
+                            <div class="header-content">
+                                <div class="logo-container">
+                                    <div>
+                                        <div class="main-title">VOLCANO CONTROL PANEL</div>
+                                        <span class="sub-title">WEB DAV CONTROL CENTER</span>
+                                    </div>
+                                </div>
+                                <span class="status">● ONLINE</span>
+                            </div>
+                        </header>
+                        <div class="menu-content">
+                            \(topSettingsHeader)
+                            \(activeCardsHTML)
+                        </div>
                     </div>
+                </div>
                 </body>
                 </html>
                 """
