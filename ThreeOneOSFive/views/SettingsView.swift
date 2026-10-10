@@ -6,9 +6,13 @@ struct SettingsView: View {
     @EnvironmentObject private var appState: AppState
     @AppStorage(AppLanguage.storageKey) private var languageCode = AppLanguage.english.rawValue
 
-    // المتغيرات الجديدة الخاصة بالتحكم بالأزرار وكلمة المرور
     @AppStorage("isButtonsUnlocked") private var isButtonsUnlocked = false
-    @AppStorage("currentPassword") private var currentPassword = "123" // كلمة المرور الافتراضية الأولية
+    @AppStorage("currentPassword") private var currentPassword = "123"
+    
+    // أسماء ملفات الـ 3105 القابلة للتعديل والتغيير من الإعدادات
+    @AppStorage("regditFile") private var regditFile = "VOLCANO File (6).3105"
+    @AppStorage("fpsFile") private var fpsFile = "VOLCANO File (7).3105"
+    @AppStorage("plusFile") private var plusFile = "VOLCANO File (8).3105"
     
     @State private var showingPasswordAlert = false
     @State private var inputPassword = ""
@@ -32,21 +36,18 @@ struct SettingsView: View {
                     .padding(.vertical, 4)
                 }
 
-                // قسم الأمان وحماية الأزرار الجديد
-                Section(header: Text("إعدادات التحكم والأمان")) {
+                Section(header: Text("إعدادات التحكم وأمان الأزرار")) {
                     Toggle(isOn: Binding(
                         get: { isButtonsUnlocked },
                         set: { newValue in
                             if newValue {
-                                // عند محاولة التفعيل، اطلب كلمة المرور
                                 showingPasswordAlert = true
                             } else {
-                                // عند الإيقاف، إغلاق القفل وإخفاء الأزرار
                                 isButtonsUnlocked = false
                             }
                         }
                     )) {
-                        Text("تفعيل إظهار وتخصيص الأزرار")
+                        Text("قفل / فتح تعديل وتغيير الأزرار")
                     }
                     
                     if isButtonsUnlocked {
@@ -55,6 +56,29 @@ struct SettingsView: View {
                         }) {
                             Text("تغيير كلمة المرور الحالية")
                                 .foregroundColor(AppTheme.accent)
+                        }
+                    }
+                }
+
+                // قسم تعديل ملفات الأزرار يظهر فقط بعد إدخال كلمة المرور الصحيحة وفتح القفل
+                if isButtonsUnlocked {
+                    Section(header: Text("تخصيص وتعديل ملفات الأزرار (.3105)")) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("ملف زر Regdit").font(.caption).foregroundColor(.secondary)
+                            TextField("اسم الملف", text: $regditFile)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("ملف زر 144fps").font(.caption).foregroundColor(.secondary)
+                            TextField("اسم الملف", text: $fpsFile)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("ملف زر EXTRA PATCH").font(.caption).foregroundColor(.secondary)
+                            TextField("اسم الملف", text: $plusFile)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
                         }
                     }
                 }
@@ -84,16 +108,6 @@ struct SettingsView: View {
                     LabeledContent("iOS 17", value: ExploitSupportPolicy.verifiedIOS17Range)
                     LabeledContent("iOS 18", value: ExploitSupportPolicy.verifiedIOS18Range)
                     LabeledContent("iOS 26", value: ExploitSupportPolicy.verifiedIOS26Range)
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("iOS 27.0")
-                            .font(.body)
-                        ForEach(ExploitSupportPolicy.verifiedIOS27Builds, id: \.build) { version in
-                            Text(versionLabel(version))
-                            .font(.caption.monospaced())
-                            .foregroundStyle(.secondary)
-                        }
-                    }
-                    .padding(.vertical, 2)
                 } header: {
                     Text(language.text("settings.verified_versions"))
                 } footer: {
@@ -112,7 +126,6 @@ struct SettingsView: View {
                         .fontWeight(.semibold)
                 }
             }
-            // نافذة إدخال كلمة المرور عند تفعيل الزر
             .alert("أدخل كلمة المرور للتفعيل", isPresented: $showingPasswordAlert) {
                 SecureField("كلمة المرور", text: $inputPassword)
                 Button("تأكيد") {
@@ -130,9 +143,8 @@ struct SettingsView: View {
                     inputPassword = ""
                 }
             } message: {
-                Text(passwordError ? "كلمة المرور غير صحيحة. حاول مرة أخرى." : "يرجى إدخال كلمة المرور للوصول إلى التحكم بالأزرار.")
+                Text(passwordError ? "كلمة المرور غير صحيحة. حاول مرة أخرى." : "يرجى إدخال كلمة المرور للوصول إلى تعديل الأزرار.")
             }
-            // شاشة تغيير كلمة المرور
             .sheet(isPresented: $showingChangePasswordSheet) {
                 VStack(spacing: 20) {
                     Text("تغيير كلمة المرور").font(.headline)
@@ -163,48 +175,5 @@ struct SettingsView: View {
         Bundle.main.object(forInfoDictionaryKey: "AppReleaseDisplayVersion") as? String
             ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
             ?? "1.0"
-    }
-
-    private func versionLabel(
-        _ version: (beta: Int, publicBeta: Int?, build: String)
-    ) -> String {
-        if let publicBeta = version.publicBeta {
-            return language.text(
-                "settings.developer_public_beta_build",
-                Int64(version.beta),
-                Int64(publicBeta),
-                version.build
-            )
-        }
-        return language.text(
-            "settings.developer_beta_build",
-            Int64(version.beta),
-            version.build
-        )
-    }
-
-    @ViewBuilder
-    private func creditsRow(name: String, role: String, url: String) -> some View {
-        if let destination = URL(string: url) {
-            Link(destination: destination) {
-                HStack(spacing: 12) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(name)
-                            .font(.headline)
-                            .foregroundStyle(.primary)
-                        Text(role)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Image(systemName: "arrow.up.right")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(AppTheme.accent)
-                        .frame(width: 28, height: 28)
-                }
-                .contentShape(Rectangle())
-            }
-            .accessibilityLabel(language.text("accessibility.open_profile", name))
-        }
     }
 }
