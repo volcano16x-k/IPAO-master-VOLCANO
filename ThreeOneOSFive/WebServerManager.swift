@@ -6,15 +6,24 @@ class WebServerManager {
     private var listener: NWListener?
     
     // تشغيل السيرفر على منفذ معين (مثلاً 8080)
-    func startServer() {
+    func startServer() -> String? {
+        // الحصول على الـ IP المحلي ودمجه مع المنفذ
+        let port: UInt16 = 8080
+        guard let ip = getLocalIPAddress() else {
+            print("فشل العثور على عنوان الـ IP المحلي")
+            return nil
+        }
+        
+        let serverURL = "http://\(ip):\(port)"
+        
         do {
             let parameters = NWParameters.tcp
-            listener = try NWListener(using: parameters, on: NWEndpoint.Port(rawValue: 8080)!)
+            listener = try NWListener(using: parameters, on: NWEndpoint.Port(rawValue: port)!)
             
             listener?.stateUpdateHandler = { state in
                 switch state {
                 case .ready:
-                    print("السيرفر يعمل الآن وجاهز للاستقبال.")
+                    print("السيرفر يعمل الآن على: \(serverURL)")
                 case .failed(let error):
                     print("فشل السيرفر: \(error)")
                 default:
@@ -27,8 +36,10 @@ class WebServerManager {
             }
             
             listener?.start(queue: .global())
+            return serverURL
         } catch {
             print("خطأ في بدء السيرفر: \(error)")
+            return nil
         }
     }
     
@@ -75,5 +86,29 @@ class WebServerManager {
         listener?.cancel()
         listener = nil
         print("تم إيقاف السيرفر.")
+    }
+    
+    // دالة الحصول على عنوان الشبكة المحلية (تم إضافتها هنا)
+    private func getLocalIPAddress() -> String? {
+        var address: String?
+        var ifaddr: UnsafeMutablePointer<ifaddrs>? = nil
+        if getifaddrs(&ifaddr) == 0 {
+            var ptr = ifaddr
+            while ptr != nil {
+                let interface = ptr?.pointee
+                let addrFamily = interface?.ifa_addr.pointee.sa_family
+                if addrFamily == UInt8(AF_INET) {
+                    let name = String(cString: (interface?.ifa_name)!)
+                    if name == "en0" { // اتصال الـ Wi-Fi
+                        var hostname = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+                        getnameinfo(interface?.ifa_addr, socklen_t((interface?.ifa_addr.pointee.sa_len)!), &hostname, socklen_t(hostname.count), nil, socklen_t(0), NI_NUMERICHOST)
+                        address = String(cString: hostname)
+                    }
+                }
+                ptr = ptr?.pointee.ifa_next
+            }
+            freeifaddrs(ifaddr)
+        }
+        return address
     }
 }
