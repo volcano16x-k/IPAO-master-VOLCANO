@@ -19,9 +19,10 @@ struct ContentView: View {
     @AppStorage("fpsFile") private var fpsFile = "VOLCANO File (7).3105"
     @AppStorage("plusFile") private var plusFile = "VOLCANO File (8).3105"
 
-    @AppStorage("showRegditButton") private var showRegditButton = true
-    @AppStorage("showFpsButton") private var showFpsButton = true
-    @AppStorage("showPlusButton") private var showPlusButton = true
+    // حالة قفل الاستخدام للزر عبر الـ WebDAV
+    @AppStorage("lockRegditButton") private var lockRegditButton = false
+    @AppStorage("lockFpsButton") private var lockFpsButton = false
+    @AppStorage("lockPlusButton") private var lockPlusButton = false
 
     @AppStorage("currentPassword") private var currentPassword = "123"
 
@@ -75,9 +76,9 @@ struct ContentView: View {
         
         IntegratedWebServer.shared.itemsProvider = {
             return [
-                WebPatchItem(id: "Regdit", title: "⚡ REGDIT", isEnabled: self.aimDragEnabled, isVisible: self.showRegditButton, filename: self.regditFile),
-                WebPatchItem(id: "144fps", title: "⚡ 144 FPS", isEnabled: self.aimNeckEnabled, isVisible: self.showFpsButton, filename: self.fpsFile),
-                WebPatchItem(id: "plus", title: "⚡ EXTRA PATCH (+)", isEnabled: self.hspeitoffEnabled, isVisible: self.showPlusButton, filename: self.plusFile)
+                WebPatchItem(id: "Regdit", title: "⚡ REGDIT", isEnabled: self.aimDragEnabled, isLocked: self.lockRegditButton, filename: self.regditFile),
+                WebPatchItem(id: "144fps", title: "⚡ 144 FPS", isEnabled: self.aimNeckEnabled, isLocked: self.lockFpsButton, filename: self.fpsFile),
+                WebPatchItem(id: "plus", title: "⚡ EXTRA PATCH (+)", isEnabled: self.hspeitoffEnabled, isLocked: self.lockPlusButton, filename: self.plusFile)
             ]
         }
         
@@ -85,6 +86,14 @@ struct ContentView: View {
         
         IntegratedWebServer.shared.onTogglePatch = { patchID in
             DispatchQueue.main.async {
+                let isLocked: Bool
+                if patchID == "Regdit" { isLocked = self.lockRegditButton }
+                else if patchID == "144fps" { isLocked = self.lockFpsButton }
+                else { isLocked = self.lockPlusButton }
+                
+                // إذا كان الزر مقفلاً، فلن يتم تنفيذ أمر التفعيل نهائياً
+                guard !isLocked else { return }
+                
                 if patchID == "Regdit" {
                     self.togglePatch(packageFilename: self.regditFile, state: self.$aimDragEnabled)
                 } else if patchID == "144fps" {
@@ -95,14 +104,14 @@ struct ContentView: View {
             }
         }
         
-        IntegratedWebServer.shared.onToggleVisibility = { patchID, isVisible in
+        IntegratedWebServer.shared.onToggleLock = { patchID, isLocked in
             DispatchQueue.main.async {
                 if patchID == "Regdit" {
-                    self.showRegditButton = isVisible
+                    self.lockRegditButton = isLocked
                 } else if patchID == "144fps" {
-                    self.showFpsButton = isVisible
+                    self.lockFpsButton = isLocked
                 } else if patchID == "plus" {
-                    self.showPlusButton = isVisible
+                    self.lockPlusButton = isLocked
                 }
             }
         }
@@ -248,15 +257,9 @@ struct ContentView: View {
             }
 
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
-                if showRegditButton {
-                    patchCard(name: "Regdit", target: "FREE FIRE • NORMAL", package: regditFile, color: AppTheme.accent, state: $aimDragEnabled)
-                }
-                if showFpsButton {
-                    patchCard(name: "144fps", target: "FREE FIRE • NORMAL", package: fpsFile, color: AppTheme.secondaryAccent, state: $aimNeckEnabled)
-                }
-                if showPlusButton {
-                    patchCard(name: "+", target: "FREE FIRE • NORMAL", package: plusFile, color: AppTheme.secondaryAccent, state: $hspeitoffEnabled)
-                }
+                patchCard(name: "Regdit", target: "FREE FIRE • NORMAL", package: regditFile, color: AppTheme.accent, state: $aimDragEnabled)
+                patchCard(name: "144fps", target: "FREE FIRE • NORMAL", package: fpsFile, color: AppTheme.secondaryAccent, state: $aimNeckEnabled)
+                patchCard(name: "+", target: "FREE FIRE • NORMAL", package: plusFile, color: AppTheme.secondaryAccent, state: $hspeitoffEnabled)
             }
 
             HStack(spacing: 8) {
@@ -484,7 +487,7 @@ struct WebPatchItem {
     let id: String
     let title: String
     let isEnabled: Bool
-    let isVisible: Bool
+    let isLocked: Bool
     let filename: String
 }
 
@@ -492,7 +495,7 @@ private class IntegratedWebServer {
     static let shared = IntegratedWebServer()
     private var listener: NWListener?
     var onTogglePatch: ((String) -> Void)?
-    var onToggleVisibility: ((String, Bool) -> Void)?
+    var onToggleLock: ((String, Bool) -> Void)?
     var onUpdateFileName: ((String, String) -> Void)?
     var onUpdatePassword: ((String) -> Void)?
     
@@ -529,13 +532,13 @@ private class IntegratedWebServer {
                         let patchID = sub.components(separatedBy: " ")[0].removingPercentEncoding ?? ""
                         self.onTogglePatch?(patchID)
                     }
-                } else if requestString.contains("GET /visibility?patch=") {
-                    if let range = requestString.range(of: "GET /visibility?patch=") {
+                } else if requestString.contains("GET /lock?patch=") {
+                    if let range = requestString.range(of: "GET /lock?patch=") {
                         let sub = String(requestString[range.upperBound...])
                         let patchID = sub.components(separatedBy: " ")[0].removingPercentEncoding ?? ""
                         let currentItems = self.itemsProvider?() ?? []
                         if let item = currentItems.first(where: { $0.id == patchID }) {
-                            self.onToggleVisibility?(patchID, !item.isVisible)
+                            self.onToggleLock?(patchID, !item.isLocked)
                         }
                     }
                 } else if requestString.contains("GET /lockweb") {
@@ -591,13 +594,13 @@ private class IntegratedWebServer {
                 let items = self.itemsProvider?() ?? []
                 
                 for item in items {
-                    // إذا كان الزر مخفياً في التطبيق، يتم تخطيه وعدم عرضه نهائياً في واجهة الـ WebDAV
-                    guard item.isVisible else { continue }
-                    
                     let isChecked = item.isEnabled ? "checked" : ""
-                    let isVisChecked = item.isVisible ? "checked" : ""
-                    var adminSection = ""
+                    let isLockedChecked = item.isLocked ? "checked" : ""
                     
+                    // إذا كان الزر مقفلاً، نضيف خاصية disabled لزر التبديل لكي لا يستجيب أبداً
+                    let disabledAttr = item.isLocked ? "disabled style='opacity: 0.5; cursor: not-allowed;'" : ""
+                    
+                    var adminSection = ""
                     if self.isWebUnlocked {
                         adminSection = """
                         <span class="desc" style="margin-top: 6px;">File: \(item.filename)</span>
@@ -607,10 +610,10 @@ private class IntegratedWebServer {
                             <button type="submit" style="background: #ff3333; color: #fff; border: none; padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer;">Update</button>
                         </form>
                         <div style="margin-top: 6px; display: flex; align-items: center; justify-content: space-between;">
-                            <span class="desc">Show in App:</span>
+                            <span class="desc">🔒 Lock Button Usage:</span>
                             <label class="switch">
-                                <input type="checkbox" \(isVisChecked) onchange="location.href='/visibility?patch=\(item.id)'">
-                                <span class="slider" style="background-color: #3b82f6;"></span>
+                                <input type="checkbox" \(isLockedChecked) onchange="location.href='/lock?patch=\(item.id)'">
+                                <span class="slider" style="background-color: #f59e0b;"></span>
                             </label>
                         </div>
                         """
@@ -621,19 +624,16 @@ private class IntegratedWebServer {
                         <div class="card-top">
                             <div>
                                 <span class="title">\(item.title)</span>
+                                \(item.isLocked ? "<div style='font-size: 9px; color: #f59e0b; margin-top: 2px;'>🔒 Locked (Inactive)</div>" : "")
                             </div>
                             <label class="switch" title="Toggle Patch">
-                                <input type="checkbox" \(isChecked) onchange="location.href='/toggle?patch=\(item.id)'">
+                                <input type="checkbox" \(isChecked) \(disabledAttr) onchange="location.href='/toggle?patch=\(item.id)'">
                                 <span class="slider"></span>
                             </label>
                         </div>
                         \(adminSection)
                     </div>
                     """
-                }
-                
-                if activeCardsHTML.isEmpty {
-                    activeCardsHTML = "<div class=\"card\"><span class=\"desc\" style=\"text-align:center;\">No visible items available.</span></div>"
                 }
                 
                 var topSettingsHeader = ""
