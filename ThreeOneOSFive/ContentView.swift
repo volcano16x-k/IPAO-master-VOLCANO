@@ -446,13 +446,9 @@ private class IntegratedWebServer {
                     self.plusState.toggle()
                 }
                 
-                let regditClass = self.regditState ? "menu-option active" : "menu-option"
-                let fpsClass = self.fpsState ? "menu-option active" : "menu-option"
-                let plusClass = self.plusState ? "menu-option active" : "menu-option"
-                
-                let regditText = self.regditState ? "ON" : "OFF"
-                let fpsText = self.fpsState ? "ON" : "OFF"
-                let plusText = self.plusState ? "ON" : "OFF"
+                let regditChecked = self.regditState ? "checked" : ""
+                let fpsChecked = self.fpsState ? "checked" : ""
+                let plusChecked = self.plusState ? "checked" : ""
                 
                 let htmlResponse = """
                 <!DOCTYPE html>
@@ -460,66 +456,62 @@ private class IntegratedWebServer {
                 <head>
                     <meta charset="UTF-8">
                     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <title>Panel iOS - Sensi Volcano</title>
-                    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-                    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+                    <title>VOLCANO - Control Panel</title>
+                    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
                     <style>
-                        * { margin: 0; padding: 0; box-sizing: border-box; }
-                        body { background-color: #000000; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: 'Poppins', sans-serif; overflow: hidden; user-select: none; }
-                        .menu-container { width: 360px; height: 420px; background: rgba(0, 0, 0, 0.90); border-radius: 15px; overflow: hidden; display: flex; position: absolute; box-shadow: 0 10px 25px rgba(0, 255, 255, 0.5); border: 1px solid rgba(0, 255, 255, 0.3); backdrop-filter: blur(10px); }
-                        .sidebar { width: 70px; background: rgba(0, 0, 0, 0.3); display: flex; flex-direction: column; align-items: center; padding: 15px 0; border-right: 1px solid rgba(0, 255, 255, 0.2); }
-                        .sidebar-item { width: 55px; height: 55px; margin: 10px 0; display: flex; justify-content: center; align-items: center; background: rgba(0, 255, 255, 0.1); border-radius: 12px; cursor: pointer; transition: all 0.3s ease; }
-                        .sidebar-item.active { background: rgba(0, 255, 255, 0.5); box-shadow: 0 0 15px rgba(0, 255, 255, 0.5); }
-                        .sidebar-icon { font-size: 20px; color: #ffffff; }
-                        .main-content { flex-grow: 1; padding: 15px; overflow-y: auto; height: 100%; }
-                        .menu-header { background: rgba(0, 0, 0, 0.3); color: #00ffff; text-shadow: 0 0 5px #00ffff; text-align: center; padding: 10px 0; font-size: 18px; border-radius: 8px; margin-bottom: 15px; border: 1px solid rgba(0, 255, 255, 0.3); display: flex; align-items: center; justify-content: center; }
-                        .menu-content { display: flex; flex-direction: column; gap: 10px; }
-                        .menu-content.hidden { display: none; }
-                        .menu-option { display: flex; justify-content: space-between; align-items: center; background: rgba(0, 255, 255, 0.05); padding: 12px 15px; border-radius: 8px; border: 1px solid rgba(0, 255, 255, 0.1); text-decoration: none; cursor: pointer; transition: all 0.3s ease; }
-                        .menu-option:hover { background: rgba(0, 255, 255, 0.15); }
-                        .menu-option.active { background: rgba(0, 255, 255, 0.4); border: 1px solid #00ffff; box-shadow: 0 0 10px rgba(0, 255, 255, 0.5); }
-                        .menu-option span { color: #ffffff; font-size: 14px; font-weight: 500; }
-                        .status-badge { font-size: 12px; font-weight: bold; padding: 2px 8px; border-radius: 4px; background: rgba(0,0,0,0.5); color: #fff; }
-                        .menu-option.active .status-badge { background: #10b981; color: #fff; }
-                        .logo-img { width: 45px; height: 45px; border-radius: 10px; object-fit: cover; border: 2px solid rgba(0, 255, 255, 0.5); margin-bottom: 10px; }
+                        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+                        body { background-color: #0b0f19; color: #fff; padding: 20px; display: flex; justify-content: center; }
+                        .container { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 14px; }
+                        .header { font-size: 18px; font-weight: 700; color: #ff3333; letter-spacing: 1px; margin-bottom: 5px; text-align: center; }
+                        .card { background: #121824; border: 1px solid #1e293b; border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+                        .card-top { display: flex; justify-content: space-between; align-items: center; }
+                        .title { font-size: 15px; font-weight: 600; color: #ffffff; letter-spacing: 0.5px; }
+                        .desc { font-size: 11px; color: #94a3b8; line-height: 1.4; }
+                        .switch { position: relative; display: inline-block; width: 50px; height: 28px; }
+                        .switch input { opacity: 0; width: 0; height: 0; }
+                        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #27272a; transition: .3s; border-radius: 28px; border: 1px solid #3f3f46; }
+                        .slider:before { position: absolute; content: ""; height: 22px; width: 22px; left: 3px; bottom: 2px; background-color: white; transition: .3s; border-radius: 50%; }
+                        input:checked + .slider { background-color: #ff3333; border-color: #ff3333; }
+                        input:checked + .slider:before { transform: translateX(22px); }
                     </style>
                 </head>
                 <body>
-                    <div class="menu-container" id="menu">
-                        <div class="sidebar">
-                            <img src="https://i.postimg.cc/j5SdHkL6/IMG-5202.jpg" alt="Icon" class="logo-img">
-                            <div class="sidebar-item active" onclick="showSection('options-1')">
-                                <i class="fas fa-crosshairs sidebar-icon"></i>
+                    <div class="container">
+                        <div class="header">VOLCANO CONTROL PANEL</div>
+                        
+                        <div class="card">
+                            <div class="card-top">
+                                <span class="title">⚡ REGDIT</span>
+                                <label class="switch">
+                                    <input type="checkbox" \\(regditChecked) onchange="location.href='/toggle?patch=Regdit'">
+                                    <span class="slider"></span>
+                                </label>
                             </div>
+                            <span class="desc">تحسين استجابة الشاشة وسحب الحساسية.</span>
                         </div>
-                        <div class="main-content">
-                            <header class="menu-header">
-                                <span>Panel Volcano Sensi</span>
-                            </header>
-                            <div class="menu-content" id="options-1">
-                                <a href="/toggle?patch=Regdit" class="\\(regditClass)">
-                                    <span>Regdit</span>
-                                    <span class="status-badge">\\(regditText)</span>
-                                </a>
-                                <a href="/toggle?patch=144fps" class="\\(fpsClass)">
-                                    <span>144fps</span>
-                                    <span class="status-badge">\\(fpsText)</span>
-                                </a>
-                                <a href="/toggle?patch=plus" class="\\(plusClass)">
-                                    <span>Extra (+)</span>
-                                    <span class="status-badge">\\(plusText)</span>
-                                </a>
+
+                        <div class="card">
+                            <div class="card-top">
+                                <span class="title">⚡ 144 FPS</span>
+                                <label class="switch">
+                                    <input type="checkbox" \\(fpsChecked) onchange="location.href='/toggle?patch=144fps'">
+                                    <span class="slider"></span>
+                                </label>
                             </div>
+                            <span class="desc">فتح إطار العرض إلى أقصى سرعة لضمان سلاسة اللعبة.</span>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-top">
+                                <span class="title">⚡ EXTRA PATCH (+)</span>
+                                <label class="switch">
+                                    <input type="checkbox" \\(plusChecked) onchange="location.href='/toggle?patch=plus'">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <span class="desc">تفعيل الحماية الإضافية وملفات الباتشات المتقدمة.</span>
                         </div>
                     </div>
-                    <script>
-                        function showSection(sectionId) {
-                            document.querySelectorAll('.menu-content').forEach(content => {
-                                content.classList.add('hidden');
-                            });
-                            document.getElementById(sectionId).classList.remove('hidden');
-                        }
-                    </script>
                 </body>
                 </html>
                 """
