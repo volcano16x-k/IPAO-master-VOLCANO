@@ -531,7 +531,6 @@ private class IntegratedWebServer {
                 
                 var activeCardsHTML = ""
                 
-                // عرض الزر في WebDAV فقط إذا كان مسموحاً بإظهاره
                 if self.showRegdit {
                     activeCardsHTML += """
                     <div class="card">
@@ -699,7 +698,8 @@ private struct PatchOptionCard: View {
                     .tracking(1.3)
                     .foregroundStyle(color)
                 HStack(spacing: 7) {
-                    Circle().filter(isEnabled ? Color.green : Color.white.opacity(0.25)).frame(width: 8, height: 8)
+                    // تم التصحيح هنا إلى fill بدلاً من filter لتجاوز خطأ البناء
+                    Circle().fill(isEnabled ? Color.green : Color.white.opacity(0.25)).frame(width: 8, height: 8)
                     Text(isEnabled ? "PATCH ACTIVE" : "ACTIVATE PATCH")
                         .font(.system(size: 9, weight: .black, design: .rounded))
                         .tracking(0.8)
