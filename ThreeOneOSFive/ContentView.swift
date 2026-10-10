@@ -73,50 +73,49 @@ struct ContentView: View {
     private func startServerAutomatically() {
         guard !isServerRunning else { return }
         
-        IntegratedWebServer.shared.regditState = self.aimDragEnabled
-        IntegratedWebServer.shared.fpsState = self.aimNeckEnabled
-        IntegratedWebServer.shared.plusState = self.hspeitoffEnabled
+        // ربط مزودات البيانات الديناميكية للخادم
+        IntegratedWebServer.shared.itemsProvider = {
+            return [
+                WebPatchItem(id: "Regdit", title: "⚡ REGDIT", isEnabled: self.aimDragEnabled, isVisible: self.showRegditButton, filename: self.regditFile),
+                WebPatchItem(id: "144fps", title: "⚡ 144 FPS", isEnabled: self.aimNeckEnabled, isVisible: self.showFpsButton, filename: self.fpsFile),
+                WebPatchItem(id: "plus", title: "⚡ EXTRA PATCH (+)", isEnabled: self.hspeitoffEnabled, isVisible: self.showPlusButton, filename: self.plusFile)
+                // يمكنك إضافة أي خيار جديد هنا مستقبلاً وسيتعامل معه الخادم تلقائياً!
+            ]
+        }
         
-        IntegratedWebServer.shared.showRegdit = self.showRegditButton
-        IntegratedWebServer.shared.showFps = self.showFpsButton
-        IntegratedWebServer.shared.showPlus = self.showPlusButton
+        IntegratedWebServer.shared.appPasswordProvider = { self.currentPassword }
         
-        IntegratedWebServer.shared.regditFilename = self.regditFile
-        IntegratedWebServer.shared.fpsFilename = self.fpsFile
-        IntegratedWebServer.shared.plusFilename = self.plusFile
-        IntegratedWebServer.shared.appPassword = self.currentPassword
-        
-        IntegratedWebServer.shared.onTogglePatch = { patchName in
+        IntegratedWebServer.shared.onTogglePatch = { patchID in
             DispatchQueue.main.async {
-                if patchName == "Regdit" {
+                if patchID == "Regdit" {
                     self.togglePatch(packageFilename: self.regditFile, state: self.$aimDragEnabled)
-                } else if patchName == "144fps" {
+                } else if patchID == "144fps" {
                     self.togglePatch(packageFilename: self.fpsFile, state: self.$aimNeckEnabled)
-                } else if patchName == "plus" {
+                } else if patchID == "plus" {
                     self.togglePatch(packageFilename: self.plusFile, state: self.$hspeitoffEnabled)
                 }
             }
         }
         
-        IntegratedWebServer.shared.onToggleVisibility = { buttonName, isVisible in
+        IntegratedWebServer.shared.onToggleVisibility = { patchID, isVisible in
             DispatchQueue.main.async {
-                if buttonName == "Regdit" {
+                if patchID == "Regdit" {
                     self.showRegditButton = isVisible
-                } else if buttonName == "144fps" {
+                } else if patchID == "144fps" {
                     self.showFpsButton = isVisible
-                } else if buttonName == "plus" {
+                } else if patchID == "plus" {
                     self.showPlusButton = isVisible
                 }
             }
         }
         
-        IntegratedWebServer.shared.onUpdateFileName = { buttonName, newFilename in
+        IntegratedWebServer.shared.onUpdateFileName = { patchID, newFilename in
             DispatchQueue.main.async {
-                if buttonName == "Regdit" {
+                if patchID == "Regdit" {
                     self.regditFile = newFilename
-                } else if buttonName == "144fps" {
+                } else if patchID == "144fps" {
                     self.fpsFile = newFilename
-                } else if buttonName == "plus" {
+                } else if patchID == "plus" {
                     self.plusFile = newFilename
                 }
             }
@@ -466,15 +465,9 @@ struct ContentView: View {
                 case .applied:
                     self.setPatchState(for: packageFilename, enabled: true)
                     self.patchMessage = "Inject Successful — \(packageFilename)"
-                    IntegratedWebServer.shared.regditState = self.aimDragEnabled
-                    IntegratedWebServer.shared.fpsState = self.aimNeckEnabled
-                    IntegratedWebServer.shared.plusState = self.hspeitoffEnabled
                 case .restored:
                     self.setPatchState(for: packageFilename, enabled: false)
                     self.patchMessage = "Restore Successful — \(packageFilename)"
-                    IntegratedWebServer.shared.regditState = self.aimDragEnabled
-                    IntegratedWebServer.shared.fpsState = self.aimNeckEnabled
-                    IntegratedWebServer.shared.plusState = self.hspeitoffEnabled
                 case .unavailable(let message):
                     self.patchMessage = message
                 }
@@ -489,6 +482,15 @@ struct ContentView: View {
     }
 }
 
+// نموذج ديناميكي عام لأي خيار أو زر يتم إضافته
+struct WebPatchItem {
+    let id: String
+    let title: String
+    let isEnabled: Bool
+    let isVisible: Bool
+    let filename: String
+}
+
 private class IntegratedWebServer {
     static let shared = IntegratedWebServer()
     private var listener: NWListener?
@@ -497,19 +499,8 @@ private class IntegratedWebServer {
     var onUpdateFileName: ((String, String) -> Void)?
     var onUpdatePassword: ((String) -> Void)?
     
-    var regditState = false
-    var fpsState = false
-    var plusState = false
-    
-    var showRegdit = true
-    var showFps = true
-    var showPlus = true
-    
-    var regditFilename = "VOLCANO File (6).3105"
-    var fpsFilename = "VOLCANO File (7).3105"
-    var plusFilename = "VOLCANO File (8).3105"
-    
-    var appPassword = "123"
+    var itemsProvider: (() -> [WebPatchItem])?
+    var appPasswordProvider: (() -> String)?
     var isWebUnlocked = false
     
     func startServer() -> String? {
@@ -535,24 +526,21 @@ private class IntegratedWebServer {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { data, _, _, _ in
             if let data = data, let requestString = String(data: data, encoding: .utf8) {
                 
-                if requestString.contains("GET /toggle?patch=Regdit") {
-                    self.regditState.toggle()
-                    self.onTogglePatch?("Regdit")
-                } else if requestString.contains("GET /toggle?patch=144fps") {
-                    self.fpsState.toggle()
-                    self.onTogglePatch?("144fps")
-                } else if requestString.contains("GET /toggle?patch=plus") {
-                    self.plusState.toggle()
-                    self.onTogglePatch?("plus")
-                } else if requestString.contains("GET /visibility?patch=Regdit") {
-                    self.showRegdit.toggle()
-                    self.onToggleVisibility?("Regdit", self.showRegdit)
-                } else if requestString.contains("GET /visibility?patch=144fps") {
-                    self.showFps.toggle()
-                    self.onToggleVisibility?("144fps", self.showFps)
-                } else if requestString.contains("GET /visibility?patch=plus") {
-                    self.showPlus.toggle()
-                    self.onToggleVisibility?("plus", self.showPlus)
+                if requestString.contains("GET /toggle?patch=") {
+                    if let range = requestString.range(of: "GET /toggle?patch=") {
+                        let sub = String(requestString[range.upperBound...])
+                        let patchID = sub.components(separatedBy: " ")[0].removingPercentEncoding ?? ""
+                        self.onTogglePatch?(patchID)
+                    }
+                } else if requestString.contains("GET /visibility?patch=") {
+                    if let range = requestString.range(of: "GET /visibility?patch=") {
+                        let sub = String(requestString[range.upperBound...])
+                        let patchID = sub.components(separatedBy: " ")[0].removingPercentEncoding ?? ""
+                        let currentItems = self.itemsProvider?() ?? []
+                        if let item = currentItems.first(where: { $0.id == patchID }) {
+                            self.onToggleVisibility?(patchID, !item.isVisible)
+                        }
+                    }
                 } else if requestString.contains("GET /lockweb") {
                     self.isWebUnlocked = false
                 } else if requestString.contains("POST /unlockweb") {
@@ -563,7 +551,7 @@ private class IntegratedWebServer {
                             let pair = param.components(separatedBy: "=")
                             if pair.count == 2 && pair[0] == "password" {
                                 let enteredPass = pair[1].removingPercentEncoding ?? ""
-                                if enteredPass == self.appPassword {
+                                if enteredPass == (self.appPasswordProvider?() ?? "123") {
                                     self.isWebUnlocked = true
                                 }
                             }
@@ -578,7 +566,6 @@ private class IntegratedWebServer {
                             if pair.count == 2 && pair[0] == "newpassword" {
                                 let newPass = pair[1].removingPercentEncoding ?? ""
                                 if !newPass.isEmpty {
-                                    self.appPassword = newPass
                                     self.onUpdatePassword?(newPass)
                                 }
                             }
@@ -588,75 +575,68 @@ private class IntegratedWebServer {
                     if let bodyRange = requestString.range(of: "\r\n\r\n") {
                         let body = String(requestString[bodyRange.upperBound...])
                         let params = body.components(separatedBy: "&")
-                        var patchName = ""
+                        var patchID = ""
                         var newName = ""
                         for param in params {
                             let pair = param.components(separatedBy: "=")
                             if pair.count == 2 {
-                                if pair[0] == "patch" { patchName = pair[1].removingPercentEncoding ?? "" }
+                                if pair[0] == "patch" { patchID = pair[1].removingPercentEncoding ?? "" }
                                 if pair[0] == "filename" { newName = pair[1].removingPercentEncoding?.replacingOccurrences(of: "+", with: " ") ?? "" }
                             }
                         }
-                        if !patchName.isEmpty && !newName.isEmpty {
-                            if patchName == "Regdit" { self.regditFilename = newName }
-                            if patchName == "144fps" { self.fpsFilename = newName }
-                            if patchName == "plus" { self.plusFilename = newName }
-                            self.onUpdateFileName?(patchName, newName)
+                        if !patchID.isEmpty && !newName.isEmpty {
+                            self.onUpdateFileName?(patchID, newName)
                         }
                     }
                 }
                 
                 var activeCardsHTML = ""
+                let items = self.itemsProvider?() ?? []
                 
-                let makeCardHTML = { (title: String, patchKey: String, isChecked: String, isVisChecked: String, filename: String, isVisible: Bool) -> String in
-                    var adminSection = ""
-                    if self.isWebUnlocked {
-                        adminSection = """
-                        <span class="desc" style="margin-top: 6px;">File: \(filename)</span>
-                        <form action="/updateFile" method="POST" style="margin-top: 5px; display: flex; gap: 5px;">
-                            <input type="hidden" name="patch" value="\(patchKey)">
-                            <input type="text" name="filename" value="\(filename)" style="background: #0b0f19; color: #fff; border: 1px solid #1e293b; padding: 4px; border-radius: 6px; width: 75%; font-size: 11px;">
-                            <button type="submit" style="background: #ff3333; color: #fff; border: none; padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer;">Update</button>
-                        </form>
-                        <div style="margin-top: 6px; display: flex; align-items: center; justify-content: space-between;">
-                            <span class="desc">Show/Hide Button:</span>
-                            <label class="switch">
-                                <input type="checkbox" \(isVisChecked) onchange="location.href='/visibility?patch=\(patchKey)'">
-                                <span class="slider" style="background-color: #3b82f6;"></span>
-                            </label>
+                // توليد الكروت ديناميكياً لأي عدد من الخيارات بغض النظر عن هويتها
+                for item in items {
+                    if item.isVisible {
+                        let isChecked = item.isEnabled ? "checked" : ""
+                        let isVisChecked = item.isVisible ? "checked" : ""
+                        var adminSection = ""
+                        
+                        if self.isWebUnlocked {
+                            adminSection = """
+                            <span class="desc" style="margin-top: 6px;">File: \(item.filename)</span>
+                            <form action="/updateFile" method="POST" style="margin-top: 5px; display: flex; gap: 5px;">
+                                <input type="hidden" name="patch" value="\(item.id)">
+                                <input type="text" name="filename" value="\(item.filename)" style="background: #0b0f19; color: #fff; border: 1px solid #1e293b; padding: 4px; border-radius: 6px; width: 75%; font-size: 11px;">
+                                <button type="submit" style="background: #ff3333; color: #fff; border: none; padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer;">Update</button>
+                            </form>
+                            <div style="margin-top: 6px; display: flex; align-items: center; justify-content: space-between;">
+                                <span class="desc">Show/Hide Button:</span>
+                                <label class="switch">
+                                    <input type="checkbox" \(isVisChecked) onchange="location.href='/visibility?patch=\(item.id)'">
+                                    <span class="slider" style="background-color: #3b82f6;"></span>
+                                </label>
+                            </div>
+                            """
+                        }
+                        
+                        activeCardsHTML += """
+                        <div class="card">
+                            <div class="card-top">
+                                <div>
+                                    <span class="title">\(item.title)</span>
+                                </div>
+                                <label class="switch" title="Toggle Patch">
+                                    <input type="checkbox" \(isChecked) onchange="location.href='/toggle?patch=\(item.id)'">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            \(adminSection)
                         </div>
                         """
                     }
-                    
-                    return """
-                    <div class="card">
-                        <div class="card-top">
-                            <div>
-                                <span class="title">\(title)</span>
-                            </div>
-                            <label class="switch" title="Toggle Patch">
-                                <input type="checkbox" \(isChecked) onchange="location.href='/toggle?patch=\(patchKey)'">
-                                <span class="slider"></span>
-                            </label>
-                        </div>
-                        \(adminSection)
-                    </div>
-                    """
-                }
-                
-                // يتم عرض الزر في WebDAV فقط إذا كان مرئياً في التطبيق، وإذا كان مخفياً فلن يظهر نهائياً هنا
-                if self.showRegdit {
-                    activeCardsHTML += makeCardHTML("⚡ REGDIT", "Regdit", self.regditState ? "checked" : "", self.showRegdit ? "checked" : "", self.regditFilename, self.showRegdit)
-                }
-                if self.showFps {
-                    activeCardsHTML += makeCardHTML("⚡ 144 FPS", "144fps", self.fpsState ? "checked" : "", self.showFps ? "checked" : "", self.fpsFilename, self.showFps)
-                }
-                if self.showPlus {
-                    activeCardsHTML += makeCardHTML("⚡ EXTRA PATCH (+)", "plus", self.plusState ? "checked" : "", self.showPlus ? "checked" : "", self.plusFilename, self.showPlus)
                 }
                 
                 if activeCardsHTML.isEmpty {
-                    activeCardsHTML = "<div class=\"card\"><span class=\"desc\" style=\"text-align:center;\">No visible buttons available.</span></div>"
+                    activeCardsHTML = "<div class=\"card\"><span class=\"desc\" style=\"text-align:center;\">No visible buttons available. Unlock settings to manage visibility.</span></div>"
                 }
                 
                 var topSettingsHeader = ""
@@ -805,13 +785,13 @@ private struct PatchOptionCard: View {
 private struct PatchUnlockPrompt: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var store: PatchProjectStore
-    @State private var password = ""
+    @State private name = ""
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
-                    SecureField("Package password", text: $password)
+                    SecureField("Package password", text: $name)
                         .textContentType(.password)
                 }
             }
