@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
@@ -9,12 +10,12 @@ struct SettingsView: View {
     @AppStorage("isButtonsUnlocked") private var isButtonsUnlocked = false
     @AppStorage("currentPassword") private var currentPassword = "123"
     
-    // أسماء ملفات الـ 3105 القابلة للتعديل
+    // أسماء ملفات الـ 3105
     @AppStorage("regditFile") private var regditFile = "VOLCANO File (6).3105"
     @AppStorage("fpsFile") private var fpsFile = "VOLCANO File (7).3105"
     @AppStorage("plusFile") private var plusFile = "VOLCANO File (8).3105"
     
-    // مفاتيح إظهار/إخفاء الأزرار في الواجهة الرئيسية والـ WebDAV
+    // حالات الإظهار والإخفاء للأزرار
     @AppStorage("showRegditButton") private var showRegditButton = true
     @AppStorage("showFpsButton") private var showFpsButton = true
     @AppStorage("showPlusButton") private var showPlusButton = true
@@ -25,6 +26,10 @@ struct SettingsView: View {
     
     @State private var showingChangePasswordSheet = false
     @State private var newPasswordInput = ""
+    
+    // حالات لاختيار الملف المستهدف للرفع
+    @State private var activeTargetButton: Int = 0
+    @State private var showFileImporter = false
 
     var body: some View {
         NavigationStack {
@@ -65,15 +70,25 @@ struct SettingsView: View {
                     }
                 }
 
-                // قسم تخصيص وتفعيل الأزرار (يظهر فقط بعد فتح القفل)
+                // قسم إظهار/إخفاء ورفع ملفات الأزرار (.3105)
                 if isButtonsUnlocked {
-                    Section(header: Text("تخصيص وإظهار/إخفاء الأزرار (.3105)")) {
+                    Section(header: Text("تخصيص ورفع ملفات الأزرار (.3105)")) {
                         // زر Regdit
                         VStack(alignment: .leading, spacing: 8) {
                             Toggle("إظهار زر Regdit", isOn: $showRegditButton)
-                            Text("اسم الملف").font(.caption).foregroundColor(.secondary)
-                            TextField("اسم الملف", text: $regditFile)
-                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                            HStack {
+                                Text("الملف: \(regditFile)")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(1)
+                                Spacer()
+                                Button("رفع ملف .3105") {
+                                    activeTargetButton = 1
+                                    showFileImporter = true
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .font(.caption)
+                            }
                         }
                         .padding(.vertical, 4)
                         
@@ -82,9 +97,19 @@ struct SettingsView: View {
                         // زر 144fps
                         VStack(alignment: .leading, spacing: 8) {
                             Toggle("إظهار زر 144fps", isOn: $showFpsButton)
-                            Text("اسم الملف").font(.caption).foregroundColor(.secondary)
-                            TextField("اسم الملف", text: $fpsFile)
-                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                            HStack {
+                                Text("الملف: \(fpsFile)")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(1)
+                                Spacer()
+                                Button("رفع ملف .3105") {
+                                    activeTargetButton = 2
+                                    showFileImporter = true
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .font(.caption)
+                            }
                         }
                         .padding(.vertical, 4)
                         
@@ -93,9 +118,19 @@ struct SettingsView: View {
                         // زر Extra Patch
                         VStack(alignment: .leading, spacing: 8) {
                             Toggle("إظهار زر EXTRA PATCH", isOn: $showPlusButton)
-                            Text("اسم الملف").font(.caption).foregroundColor(.secondary)
-                            TextField("اسم الملف", text: $plusFile)
-                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                            HStack {
+                                Text("الملف: \(plusFile)")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(1)
+                                Spacer()
+                                Button("رفع ملف .3105") {
+                                    activeTargetButton = 3
+                                    showFileImporter = true
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .font(.caption)
+                            }
                         }
                         .padding(.vertical, 4)
                     }
@@ -128,6 +163,36 @@ struct SettingsView: View {
                         .fontWeight(.semibold)
                 }
             }
+            .fileImporter(isPresented: $showFileImporter, allowedContentTypes: [UTType.item], allowsMultipleSelection: false) { result in
+                do {
+                    guard let selectedFile = try result.get().first else { return }
+                    if selectedFile.startAccessingSecurityScopedResource() {
+                        defer { selectedFile.stopAccessingSecurityScopedResource() }
+                        let fileName = selectedFile.lastPathComponent
+                        
+                        // حفظ الملف في مجلد المستندات وتحديث الاسم
+                        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+                        let destinationURL = documentsPath.appendingPathComponent(fileName)
+                        
+                        if FileManager.default.fileExists(atPath: destinationURL.path) {
+                            try FileManager.default.removeItem(at: destinationURL)
+                        }
+                        try FileManager.default.copyItem(at: selectedFile, to: destinationURL)
+                        
+                        DispatchQueue.main.async {
+                            if activeTargetButton == 1 {
+                                regditFile = fileName
+                            } else if activeTargetButton == 2 {
+                                fpsFile = fileName
+                            } else if activeTargetButton == 3 {
+                                plusFile = fileName
+                            }
+                        }
+                    }
+                } catch {
+                    print("Error importing file: \(error.localizedDescription)")
+                }
+            }
             .alert("أدخل كلمة المرور للتفعيل", isPresented: $showingPasswordAlert) {
                 SecureField("كلمة المرور", text: $inputPassword)
                 Button("تأكيد") {
@@ -158,7 +223,7 @@ struct SettingsView: View {
                         if !newPasswordInput.isEmpty {
                             currentPassword = newPasswordInput
                             newPasswordInput = ""
-                            showingChangePasswordSheet = false
+                            showingChangeParserSheet = false
                         }
                     }
                     .buttonStyle(.borderedProminent)
