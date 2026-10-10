@@ -606,18 +606,9 @@ private class IntegratedWebServer {
                     }
                 }
                 
-                let regditChecked = self.regditState ? "checked" : ""
-                let fpsChecked = self.fpsState ? "checked" : ""
-                let plusChecked = self.plusState ? "checked" : ""
-                
-                let regditVisChecked = self.showRegdit ? "checked" : ""
-                let fpsVisChecked = self.showFps ? "checked" : ""
-                let plusVisChecked = self.showPlus ? "checked" : ""
-                
                 var activeCardsHTML = ""
                 
-                // دالة مساعدة لإنشاء كارت الزر مع توضيح حالته (مرئي أو مخفي)
-                let makeCardHTML = (title: String, patchKey: String, isChecked: String, isVisChecked: String, filename: String, isVisible: Bool) -> String {
+                let makeCardHTML = { (title: String, patchKey: String, isChecked: String, isVisChecked: String, filename: String, isVisible: Bool) -> String in
                     let visibilityBadge = isVisible ? "<span style='color: #22c55e; font-size: 10px;'>مرئي في التطبيق</span>" : "<span style='color: #ef4444; font-size: 10px;'>مخفي في التطبيق</span>"
                     var adminSection = ""
                     if self.isWebUnlocked {
@@ -655,10 +646,9 @@ private class IntegratedWebServer {
                     """
                 }
                 
-                // عرض جميع الأزرار دائماً في الـ WebDAV لكي يمكن إظهارها أو إخفاؤها بحرية
-                activeCardsHTML += makeCardHTML("⚡ REGDIT", "Regdit", regditChecked, regditVisChecked, self.regditFilename, self.showRegdit)
-                activeCardsHTML += makeCardHTML("⚡ 144 FPS", "144fps", fpsChecked, fpsVisChecked, self.fpsFilename, self.showFps)
-                activeCardsHTML += makeCardHTML("⚡ EXTRA PATCH (+)", "plus", plusChecked, plusVisChecked, self.plusFilename, self.showPlus)
+                activeCardsHTML += makeCardHTML("⚡ REGDIT", "Regdit", self.regditState ? "checked" : "", self.showRegdit ? "checked" : "", self.regditFilename, self.showRegdit)
+                activeCardsHTML += makeCardHTML("⚡ 144 FPS", "144fps", self.fpsState ? "checked" : "", self.showFps ? "checked" : "", self.fpsFilename, self.showFps)
+                activeCardsHTML += makeCardHTML("⚡ EXTRA PATCH (+)", "plus", self.plusState ? "checked" : "", self.showPlus ? "checked" : "", self.plusFilename, self.showPlus)
                 
                 var topSettingsHeader = ""
                 if self.isWebUnlocked {
@@ -822,7 +812,7 @@ private struct PatchUnlockPrompt: View {
 }
 
 struct AnimatedHyperBackdrop: View {
-    @State private var animate = false
+    @State private var animate = largeAnimateState()
     var body: some View {
         GeometryReader { proxy in
             ZStack {
@@ -838,4 +828,5 @@ struct AnimatedHyperBackdrop: View {
             }
         }
     }
+    private static func largeAnimateState() -> Bool { false }
 }
