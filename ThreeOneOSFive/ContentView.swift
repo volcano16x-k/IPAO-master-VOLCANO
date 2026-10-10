@@ -15,7 +15,6 @@ struct ContentView: View {
     @State private var aimNeckEnabled = false
     @State private var hspeitoffEnabled = false
 
-    // جلب أسماء الملفات وحالات الإظهار/الإخفاء من الإعدادات
     @AppStorage("regditFile") private var regditFile = "VOLCANO File (6).3105"
     @AppStorage("fpsFile") private var fpsFile = "VOLCANO File (7).3105"
     @AppStorage("plusFile") private var plusFile = "VOLCANO File (8).3105"
@@ -88,6 +87,18 @@ struct ContentView: View {
                     self.togglePatch(packageFilename: self.fpsFile, state: self.$aimNeckEnabled)
                 } else if patchName == "plus" {
                     self.togglePatch(packageFilename: self.plusFile, state: self.$hspeitoffEnabled)
+                }
+            }
+        }
+        
+        IntegratedWebServer.shared.onToggleVisibility = { buttonName, isVisible in
+            DispatchQueue.main.async {
+                if buttonName == "Regdit" {
+                    self.showRegditButton = isVisible
+                } else if buttonName == "144fps" {
+                    self.showFpsButton = isVisible
+                } else if buttonName == "plus" {
+                    self.showPlusButton = isVisible
                 }
             }
         }
@@ -457,6 +468,7 @@ private class IntegratedWebServer {
     static let shared = IntegratedWebServer()
     private var listener: NWListener?
     var onTogglePatch: ((String) -> Void)?
+    var onToggleVisibility: ((String, Bool) -> Void)?
     
     var regditState = false
     var fpsState = false
@@ -498,24 +510,43 @@ private class IntegratedWebServer {
                 } else if requestString.contains("GET /toggle?patch=plus") {
                     self.plusState.toggle()
                     self.onTogglePatch?("plus")
+                } else if requestString.contains("GET /visibility?patch=Regdit") {
+                    self.showRegdit.toggle()
+                    self.onToggleVisibility?("Regdit", self.showRegdit)
+                } else if requestString.contains("GET /visibility?patch=144fps") {
+                    self.showFps.toggle()
+                    self.onToggleVisibility?("144fps", self.showFps)
+                } else if requestString.contains("GET /visibility?patch=plus") {
+                    self.showPlus.toggle()
+                    self.onToggleVisibility?("plus", self.showPlus)
                 }
                 
                 let regditChecked = self.regditState ? "checked" : ""
                 let fpsChecked = self.fpsState ? "checked" : ""
                 let plusChecked = self.plusState ? "checked" : ""
                 
+                let regditVisChecked = self.showRegdit ? "checked" : ""
+                let fpsVisChecked = self.showFps ? "checked" : ""
+                let plusVisChecked = self.showPlus ? "checked" : ""
+                
                 var activeCardsHTML = ""
                 
-                // عرض الزر في سيرفر الـ WebDAV فقط إذا كان مُمكّناً للإظهار من الإعدادات
+                // عرض الزر في WebDAV فقط إذا كان مسموحاً بإظهاره
                 if self.showRegdit {
                     activeCardsHTML += """
                     <div class="card">
                         <div class="card-top">
                             <span class="title">⚡ REGDIT</span>
-                            <label class="switch">
-                                <input type="checkbox" \(regditChecked) onchange="location.href='/toggle?patch=Regdit'">
-                                <span class="slider"></span>
-                            </label>
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <label class="switch" title="إظهار/إخفاء">
+                                    <input type="checkbox" \(regditVisChecked) onchange="location.href='/visibility?patch=Regdit'">
+                                    <span class="slider" style="background-color: #3b82f6;"></span>
+                                </label>
+                                <label class="switch" title="تشغيل الباتش">
+                                    <input type="checkbox" \(regditChecked) onchange="location.href='/toggle?patch=Regdit'">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
                         </div>
                         <span class="desc">تحسين استجابة الشاشة وسحب الحساسية.</span>
                     </div>
@@ -527,10 +558,16 @@ private class IntegratedWebServer {
                     <div class="card">
                         <div class="card-top">
                             <span class="title">⚡ 144 FPS</span>
-                            <label class="switch">
-                                <input type="checkbox" \(fpsChecked) onchange="location.href='/toggle?patch=144fps'">
-                                <span class="slider"></span>
-                            </label>
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <label class="switch" title="إظهار/إخفاء">
+                                    <input type="checkbox" \(fpsVisChecked) onchange="location.href='/visibility?patch=144fps'">
+                                    <span class="slider" style="background-color: #3b82f6;"></span>
+                                </label>
+                                <label class="switch" title="تشغيل الباتش">
+                                    <input type="checkbox" \(fpsChecked) onchange="location.href='/toggle?patch=144fps'">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
                         </div>
                         <span class="desc">فتح إطار العرض إلى أقصى سرعة لضمان سلاسة اللعبة.</span>
                     </div>
@@ -542,10 +579,16 @@ private class IntegratedWebServer {
                     <div class="card">
                         <div class="card-top">
                             <span class="title">⚡ EXTRA PATCH (+)</span>
-                            <label class="switch">
-                                <input type="checkbox" \(plusChecked) onchange="location.href='/toggle?patch=plus'">
-                                <span class="slider"></span>
-                            </label>
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <label class="switch" title="إظهار/إخفاء">
+                                    <input type="checkbox" \(plusVisChecked) onchange="location.href='/visibility?patch=plus'">
+                                    <span class="slider" style="background-color: #3b82f6;"></span>
+                                </label>
+                                <label class="switch" title="تشغيل الباتش">
+                                    <input type="checkbox" \(plusChecked) onchange="location.href='/toggle?patch=plus'">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
                         </div>
                         <span class="desc">تفعيل الحماية الإضافية وملفات الباتشات المتقدمة.</span>
                     </div>
@@ -553,7 +596,7 @@ private class IntegratedWebServer {
                 }
                 
                 if activeCardsHTML.isEmpty {
-                    activeCardsHTML = "<div class=\"card\"><span class=\"desc\" style=\"text-align:center;\">لا توجد أزرار مفعلة للإظهار حالياً.</span></div>"
+                    activeCardsHTML = "<div class=\"card\"><span class=\"desc\" style=\"text-align:center;\">لا توجد أزرار ظاهرة حالياً.</span></div>"
                 }
                 
                 let htmlResponse = """
@@ -573,12 +616,12 @@ private class IntegratedWebServer {
                         .card-top { display: flex; justify-content: space-between; align-items: center; }
                         .title { font-size: 15px; font-weight: 600; color: #ffffff; letter-spacing: 0.5px; }
                         .desc { font-size: 11px; color: #94a3b8; line-height: 1.4; }
-                        .switch { position: relative; display: inline-block; width: 50px; height: 28px; }
+                        .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
                         .switch input { opacity: 0; width: 0; height: 0; }
-                        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #27272a; transition: .3s; border-radius: 28px; border: 1px solid #3f3f46; }
-                        .slider:before { position: absolute; content: ""; height: 22px; width: 22px; left: 3px; bottom: 2px; background-color: white; transition: .3s; border-radius: 50%; }
+                        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #27272a; transition: .3s; border-radius: 24px; border: 1px solid #3f3f46; }
+                        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 2px; background-color: white; transition: .3s; border-radius: 50%; }
                         input:checked + .slider { background-color: #ff3333; border-color: #ff3333; }
-                        input:checked + .slider:before { transform: translateX(22px); }
+                        input:checked + .slider:before { transform: translateX(20px); }
                     </style>
                 </head>
                 <body>
@@ -656,7 +699,7 @@ private struct PatchOptionCard: View {
                     .tracking(1.3)
                     .foregroundStyle(color)
                 HStack(spacing: 7) {
-                    Circle().fill(isEnabled ? Color.green : Color.white.opacity(0.25)).frame(width: 8, height: 8)
+                    Circle().filter(isEnabled ? Color.green : Color.white.opacity(0.25)).frame(width: 8, height: 8)
                     Text(isEnabled ? "PATCH ACTIVE" : "ACTIVATE PATCH")
                         .font(.system(size: 9, weight: .black, design: .rounded))
                         .tracking(0.8)
