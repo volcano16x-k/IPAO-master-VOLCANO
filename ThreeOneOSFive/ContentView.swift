@@ -24,6 +24,7 @@ struct ContentView: View {
     @AppStorage("lockPlusButton") private var lockPlusButton = false
 
     @AppStorage("currentPassword") private var currentPassword = "123"
+    @AppStorage("keepAliveActive") private var keepAliveActive = false
 
     @State private var serverURL: String? = nil
     @State private var isServerRunning = false
@@ -39,6 +40,7 @@ struct ContentView: View {
                     brandHeader
                     devicePanel
                     webServerPanel
+                    backgroundKeepAlivePanel // زر التحكم الجديد بالصوت الصامت
                     patchOptions
                     gameLaunchPanel
                     footerStatus
@@ -60,6 +62,10 @@ struct ContentView: View {
             PatchUnlockPrompt(store: patchStore)
         }
         .onAppear {
+            setupAudioSessionForBackground()
+            if keepAliveActive {
+                BackgroundAudioPlayer.shared.startSilentAudio()
+            }
             syncPatchStates()
             startServerAutomatically()
         }
@@ -68,6 +74,54 @@ struct ContentView: View {
             syncPatchStates()
             patchMessage = "READY — SELECT A PATCH"
         }
+    }
+
+    private func setupAudioSessionForBackground() {
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            try session.setActive(true)
+        } catch {
+            print("Failed to set audio session: \(error)")
+        }
+    }
+
+    // لوحة تحكم لتشغيل أو إيقاف الصوت الصامت للخلفية
+    private var backgroundKeepAlivePanel: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "speaker.wave.2.fill")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(AppTheme.accent)
+                
+                Text("BACKGROUND KEEPALIVE")
+                    .font(.system(size: 12, weight: .black, design: .rounded))
+                    .tracking(1.4)
+                    .foregroundStyle(AppTheme.accent)
+                
+                Spacer()
+                
+                Toggle("", isOn: $keepAliveActive)
+                    .labelsHidden()
+                    .tint(AppTheme.accent)
+                    .onChange(of: keepAliveActive) { newValue in
+                        if newValue {
+                            BackgroundAudioPlayer.shared.startSilentAudio()
+                            patchMessage = "KEEP-ALIVE ACTIVE (SILENT AUDIO)"
+                        } else {
+                            BackgroundAudioPlayer.shared.stopSilentAudio()
+                            patchMessage = "KEEP-ALIVE STOPPED"
+                        }
+                    }
+            }
+            
+            Text("Play silent audio to prevent server suspension when app is in background.")
+                .font(.system(size: 10, weight: .medium, design: .rounded))
+                .foregroundStyle(.white.opacity(0.6))
+        }
+        .padding(16)
+        .background(Color.black.opacity(0.42), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(AppTheme.accent.opacity(0.38), lineWidth: 1))
     }
 
     private func startServerAutomatically() {
@@ -481,6 +535,28 @@ struct ContentView: View {
     }
 }
 
+class BackgroundAudioPlayer {
+    static let shared = BackgroundAudioPlayer()
+    private var player: AVAudioPlayer?
+
+    func startSilentAudio() {
+        guard let url = Bundle.main.url(forResource: "silent", withExtension: "mp3") else { return }
+        do {
+            player = try AVAudioPlayer(contentsOf: url)
+            player?.numberOfLoops = -1
+            player?.volume = 0.0
+            player?.play()
+        } catch {
+            print("Audio player error: \(error)")
+        }
+    }
+
+    func stopSilentAudio() {
+        player?.stop()
+        player = nil
+    }
+}
+
 struct WebPatchItem {
     let id: String
     let title: String
@@ -668,16 +744,12 @@ private class IntegratedWebServer {
                 html, body { width: 100%; height: 100%; background: #000; }
                 body { display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; background: radial-gradient(circle at center, rgba(255,40,40,0.07), #000 70%); color: white; font-family: Poppins, Arial, sans-serif; user-select: none; }
                 .menu-container { width: 400px; height: 520px; position: absolute; display: flex; overflow: hidden; background: rgba(0,0,0,0.92); border: 1px solid rgba(255,40,40,0.4); border-radius: 16px; box-shadow: 0 0 18px rgba(255,40,40,0.35), 0 20px 60px rgba(0,0,0,0.85); backdrop-filter: blur(12px); }
-                #particles-js { position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: 0.5; }
-                .sidebar { width: 72px; min-width: 72px; height: 100%; padding: 13px 0; display: flex; flex-direction: column; align-items: center; background: rgba(0,0,0,0.5); border-right: 1px solid rgba(255,40,40,0.18); position: relative; z-index: 3; }
-                .logo-img { width: 48px; height: 48px; object-fit: cover; border-radius: 12px; border: 2px solid rgba(255,40,40,0.6); box-shadow: 0 0 12px rgba(255,40,40,0.5); margin-bottom: 14px; }
                 .main-content { flex: 1; height: 100%; padding: 14px; position: relative; z-index: 2; overflow-y: auto; }
                 .main-content::-webkit-scrollbar { width: 3px; }
                 .main-content::-webkit-scrollbar-thumb { background: rgba(255,40,40,0.4); border-radius: 10px; }
                 .menu-header { position: relative; overflow: hidden; padding: 10px; border-radius: 10px; border: 1px solid rgba(255,40,40,0.3); background: rgba(0,0,0,0.4); margin-bottom: 12px; }
                 .header-content { position: relative; display: flex; align-items: center; justify-content: space-between; }
                 .logo-container { display: flex; align-items: center; }
-                .verified-icon { width: 25px; height: 25px; object-fit: cover; border-radius: 50%; margin-right: 8px; border: 1px solid rgba(255,40,40,0.5); }
                 .main-title { color: #ff3030; font-size: 15px; font-weight: 600; text-shadow: 0 0 7px #ff3030; }
                 .sub-title { display: block; margin-top: 2px; color: rgba(255,255,255,0.5); font-family: Roboto Mono, monospace; font-size: 8px; }
                 .status { color: #ff3030; font-family: Roboto Mono, monospace; font-size: 8px; }
