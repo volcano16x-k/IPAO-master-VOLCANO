@@ -103,7 +103,7 @@ struct ContentView: View {
             
             if isServerRunning, let url = serverURL {
                 VStack(spacing: 10) {
-                    Text("اكتب هذا الرابط في متصفح Safari لإدارة الملفات:")
+                    Text("اكتب هذا الرابط في متصفح Safari للتحكم عن بعد:")
                         .font(.system(size: 11, weight: .medium, design: .rounded))
                         .foregroundStyle(.white.opacity(0.6))
                         .multilineTextAlignment(.center)
@@ -131,6 +131,20 @@ struct ContentView: View {
                 }
             } else {
                 Button {
+                    // ربط الدوال بالسيرفر ليتم استدعاؤها عند الضغط من المتصفح
+                    IntegratedWebServer.shared.onTogglePatch = { packageFilename in
+                        DispatchQueue.main.async {
+                            // محاكاة الضغط على الباتش من داخل التطبيق
+                            if packageFilename == "Regdit" {
+                                self.togglePatch(packageFilename: "VOLCANO File (6).3105", state: self.$aimDragEnabled)
+                            } else if packageFilename == "144fps" {
+                                self.togglePatch(packageFilename: "VOLCANO File (7).3105", state: self.$aimNeckEnabled)
+                            } else if packageFilename == "+" {
+                                self.togglePatch(packageFilename: "VOLCANO File (8).3105", state: self.$hspeitoffEnabled)
+                            }
+                        }
+                    }
+                    
                     if let url = IntegratedWebServer.shared.startServer() {
                         serverURL = url
                         isServerRunning = true
@@ -387,9 +401,11 @@ struct ContentView: View {
     }
 }
 
+// سيرفر الـ Web ل استقبال الأوامر وتفعيل الأزرار من المتصفح
 private class IntegratedWebServer {
     static let shared = IntegratedWebServer()
     private var listener: NWListener?
+    var onTogglePatch: ((String) -> Void)?
     
     func startServer() -> String? {
         let port: UInt16 = 8080
@@ -414,17 +430,13 @@ private class IntegratedWebServer {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { data, _, _, _ in
             if let data = data, let requestString = String(data: data, encoding: .utf8) {
                 
-                let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-                var fileListHTML = ""
-                
-                do {
-                    let fileURLs = try FileManager.default.contentsOfDirectory(at: documentsPath, includingPropertiesForKeys: [.fileSizeKey])
-                    for file in fileURLs {
-                        let name = file.lastPathComponent
-                        fileListHTML += "<tr><td>\(name)</td><td><a href=\"#\" style=\"color: #38bdf8;\">تحميل</a></td></tr>"
-                    }
-                } catch {
-                    fileListHTML = "<tr><td colspan=\"2\">فشل قراءة الملفات</td></tr>"
+                // فحص إذا كان المتصفح طلب تفعيل زر معين
+                if requestString.contains("GET /toggle?patch=Regdit") {
+                    self.onTogglePatch?("Regdit")
+                } else if requestString.contains("GET /toggle?patch=144fps") {
+                    self.onTogglePatch?("144fps")
+                } else if requestString.contains("GET /toggle?patch=plus") {
+                    self.onTogglePatch?("plus")
                 }
                 
                 let htmlResponse = """
@@ -432,31 +444,23 @@ private class IntegratedWebServer {
                 <html lang="ar" dir="rtl">
                 <head>
                     <meta charset="UTF-8">
-                    <title>VOLCANO - إدارة الملفات</title>
+                    <title>VOLCANO - التحكم عن بعد</title>
                     <style>
                         body { font-family: sans-serif; background: #0f172a; color: #fff; text-align: center; padding: 20px; }
-                        .card { background: #1e293b; padding: 20px; border-radius: 12px; max-width: 600px; margin: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
-                        h1 { color: #38bdf8; font-size: 22px; }
-                        table { width: 100%; margin-top: 20px; border-collapse: collapse; }
-                        th, td { padding: 10px; border-bottom: 1px solid #334155; text-align: right; font-size: 14px; }
-                        th { color: #94a3b8; }
+                        .card { background: #1e293b; padding: 25px; border-radius: 16px; max-width: 400px; margin: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+                        h1 { color: #38bdf8; font-size: 20px; }
+                        .btn { display: block; width: 100%; padding: 14px; margin: 10px 0; background: #ef4444; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; text-decoration: none; }
+                        .btn-reg { background: #3b82f6; }
+                        .btn-fps { background: #10b981; }
                     </style>
                 </head>
                 <body>
                     <div class="card">
-                        <h1>لوحة تحكم ملفات VOLCANO</h1>
-                        <p>قائمة الملفات الموجودة في مجلد التطبيق:</p>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>اسم الملف</th>
-                                    <th>الإجراء</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                \(fileListHTML)
-                            </tbody>
-                        </table>
+                        <h1>لوحة تحكم VOLCANO</h1>
+                        <p>اضغط لتفعيل أو إلغاء الباتشات من Safari:</p>
+                        <a href="/toggle?patch=Regdit" class="btn btn-reg">تفعيل / إلغاء Regdit</a>
+                        <a href="/toggle?patch=144fps" class="btn btn-fps">تفعيل / إلغاء 144fps</a>
+                        <a href="/toggle?patch=plus" class="btn">تفعيل / إلغاء (+)</a>
                     </div>
                 </body>
                 </html>
