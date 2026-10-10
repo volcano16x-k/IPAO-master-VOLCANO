@@ -1,6 +1,7 @@
 import SwiftUI
 import UIKit
 import AVFoundation
+import Network // أضيفت لمكتبة السيرفر المحلي
 
 struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
@@ -18,6 +19,10 @@ struct ContentView: View {
     @State private var aimChestPackageEnabled = false
     @State private var magicEnabled = false
 
+    // متغيرات خاصة بسيرفر الـ WebDAV والمحلي
+    @State private var serverURL: String? = nil
+    @State private var isServerRunning = false
+
     var body: some View {
         ZStack {
             AnimatedHyperBackdrop()
@@ -27,6 +32,7 @@ struct ContentView: View {
                 VStack(spacing: 18) {
                     brandHeader
                     devicePanel
+                    webServerPanel // لوحة تحكم سيرفر الـ WebDAV والـ IP
                     patchOptions
                     gameLaunchPanel
                     footerStatus
@@ -91,6 +97,61 @@ struct ContentView: View {
             statusRow(icon: "apple.logo", title: "iOS", value: AppInfo.osVersion, color: AppTheme.secondaryAccent)
             statusRow(icon: "iphone", title: "Device", value: AppInfo.displayMachineName, color: AppTheme.secondaryAccent)
             statusRow(icon: "checkmark.seal.fill", title: "Support", value: appState.isSupported ? "SUPPORTED" : "UNSUPPORTED", color: appState.isSupported ? .green : .red)
+        }
+        .padding(16)
+        .background(Color.black.opacity(0.42), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(AppTheme.accent.opacity(0.38), lineWidth: 1))
+    }
+
+    // لوحة تحكم مشاركة الملفات عبر السيرفر المحلي و Safari
+    private var webServerPanel: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            panelTitle("SAFARI WEBDAV SERVER", icon: "network")
+            
+            if isServerRunning, let url = serverURL {
+                VStack(spacing: 10) {
+                    Text("اكتب هذا الرابط في متصفح Safari لإدارة الملفات:")
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.6))
+                        .multilineTextAlignment(.center)
+                    
+                    Text(url)
+                        .font(.system(size: 13, weight: .bold, design: .monospaced))
+                        .padding(10)
+                        .frame(maxWidth: .infinity)
+                        .background(Color.black.opacity(0.5))
+                        .cornerRadius(8)
+                        .foregroundStyle(AppTheme.accent)
+                    
+                    Button {
+                        WebServerManager.shared.stopServer()
+                        isServerRunning = false
+                        serverURL = nil
+                    } label: {
+                        Text("إيقاف السيرفر")
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity, minHeight: 40)
+                            .background(Color.red.opacity(0.8), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                }
+            } else {
+                Button {
+                    if let url = WebServerManager.shared.startServer() {
+                        serverURL = url
+                        isServerRunning = true
+                    }
+                } label: {
+                    Label("تشغيل السيرفر المحلي (Safari IP)", systemImage: "play.fill")
+                        .font(.system(size: 12, weight: .black, design: .rounded))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .background(AppTheme.accent.opacity(0.3), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(AppTheme.accent.opacity(0.5), lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+            }
         }
         .padding(16)
         .background(Color.black.opacity(0.42), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
@@ -173,26 +234,6 @@ struct ContentView: View {
             .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(color.opacity(0.38), lineWidth: 1))
         }
         .buttonStyle(.plain)
-    }
-
-    private func lockedLaunchButton(title: String, subtitle: String, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 7) {
-            Image(systemName: "lock.fill")
-                .font(.system(size: 18, weight: .bold))
-                .foregroundStyle(color.opacity(0.72))
-            Text(title)
-                .font(.system(size: 13, weight: .black, design: .rounded))
-                .foregroundStyle(.white.opacity(0.72))
-            Text(subtitle)
-                .font(.system(size: 10, weight: .bold, design: .rounded))
-                .foregroundStyle(color.opacity(0.72))
-        }
-        .frame(maxWidth: .infinity, minHeight: 82, alignment: .leading)
-        .padding(.horizontal, 14)
-        .background(Color.black.opacity(0.28), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(color.opacity(0.24), lineWidth: 1))
-        .opacity(0.72)
-        .accessibilityLabel("FF MAX locked, coming soon")
     }
 
     private var footerStatus: some View {
