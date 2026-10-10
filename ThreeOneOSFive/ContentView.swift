@@ -386,9 +386,17 @@ struct ContentView: View {
                 case .applied:
                     self.setPatchState(for: packageFilename, enabled: true)
                     self.patchMessage = "Inject Successful — \(packageFilename)"
+                    // مزامنة حالة السيرفر بعد النجاح
+                    IntegratedWebServer.shared.regditState = self.aimDragEnabled
+                    IntegratedWebServer.shared.fpsState = self.aimNeckEnabled
+                    IntegratedWebServer.shared.plusState = self.hspeitoffEnabled
                 case .restored:
                     self.setPatchState(for: packageFilename, enabled: false)
                     self.patchMessage = "Restore Successful — \(packageFilename)"
+                    // مزامنة حالة السيرفر بعد الإيقاف
+                    IntegratedWebServer.shared.regditState = self.aimDragEnabled
+                    IntegratedWebServer.shared.fpsState = self.aimNeckEnabled
+                    IntegratedWebServer.shared.plusState = self.hspeitoffEnabled
                 case .unavailable(let message):
                     self.patchMessage = message
                 }
@@ -436,14 +444,14 @@ private class IntegratedWebServer {
             if let data = data, let requestString = String(data: data, encoding: .utf8) {
                 
                 if requestString.contains("GET /toggle?patch=Regdit") {
-                    self.onTogglePatch?("Regdit")
                     self.regditState.toggle()
+                    self.onTogglePatch?("Regdit")
                 } else if requestString.contains("GET /toggle?patch=144fps") {
-                    self.onTogglePatch?("144fps")
                     self.fpsState.toggle()
+                    self.onTogglePatch?("144fps")
                 } else if requestString.contains("GET /toggle?patch=plus") {
-                    self.onTogglePatch?("plus")
                     self.plusState.toggle()
+                    self.onTogglePatch?("plus")
                 }
                 
                 let regditChecked = self.regditState ? "checked" : ""
@@ -483,7 +491,7 @@ private class IntegratedWebServer {
                             <div class="card-top">
                                 <span class="title">⚡ REGDIT</span>
                                 <label class="switch">
-                                    <input type="checkbox" \\(regditChecked) onchange="location.href='/toggle?patch=Regdit'">
+                                    <input type="checkbox" \(regditChecked) onchange="location.href='/toggle?patch=Regdit'">
                                     <span class="slider"></span>
                                 </label>
                             </div>
@@ -494,7 +502,7 @@ private class IntegratedWebServer {
                             <div class="card-top">
                                 <span class="title">⚡ 144 FPS</span>
                                 <label class="switch">
-                                    <input type="checkbox" \\(fpsChecked) onchange="location.href='/toggle?patch=144fps'">
+                                    <input type="checkbox" \(fpsChecked) onchange="location.href='/toggle?patch=144fps'">
                                     <span class="slider"></span>
                                 </label>
                             </div>
@@ -505,7 +513,7 @@ private class IntegratedWebServer {
                             <div class="card-top">
                                 <span class="title">⚡ EXTRA PATCH (+)</span>
                                 <label class="switch">
-                                    <input type="checkbox" \\(plusChecked) onchange="location.href='/toggle?patch=plus'">
+                                    <input type="checkbox" \(plusChecked) onchange="location.href='/toggle?patch=plus'">
                                     <span class="slider"></span>
                                 </label>
                             </div>
