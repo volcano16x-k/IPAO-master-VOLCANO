@@ -1,7 +1,6 @@
 import SwiftUI
 import UIKit
 import AVFoundation
-import WebKit
 import Network
 
 struct ContentView: View {
@@ -40,7 +39,6 @@ struct ContentView: View {
                     brandHeader
                     devicePanel
                     webServerPanel
-                    youtubeKeepAlivePanel
                     patchOptions
                     gameLaunchPanel
                     footerStatus
@@ -81,39 +79,6 @@ struct ContentView: View {
         } catch {
             print("Failed to set audio session: \(error)")
         }
-    }
-
-    private var youtubeKeepAlivePanel: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                Image(systemName: "play.tv.fill")
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundStyle(AppTheme.accent)
-                
-                Text("BACKGROUND YOUTUBE KEEPALIVE")
-                    .font(.system(size: 12, weight: .black, design: .rounded))
-                    .tracking(1.4)
-                    .foregroundStyle(AppTheme.accent)
-                
-                Spacer()
-                
-                Circle()
-                    .fill(Color.green)
-                    .frame(width: 8, height: 8)
-            }
-            
-            Text("Active media stream to keep server alive in background.")
-                .font(.system(size: 10, weight: .medium, design: .rounded))
-                .foregroundStyle(.white.opacity(0.6))
-            
-            YouTubeWebView(videoID: "xFThqlSC1GE")
-                .frame(height: 150)
-                .cornerRadius(14)
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.accent.opacity(0.3), lineWidth: 1))
-        }
-        .padding(16)
-        .background(Color.black.opacity(0.42), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(AppTheme.accent.opacity(0.38), lineWidth: 1))
     }
 
     private func startServerAutomatically() {
@@ -525,36 +490,6 @@ struct ContentView: View {
         guard let url = URL(string: "\(scheme)://") else { return }
         UIApplication.shared.open(url, options: [:]) { _ in }
     }
-}
-
-struct YouTubeWebView: UIViewRepresentable {
-    let videoID: String
-
-    func makeUIView(context: Context) -> WKWebView {
-        let webView = WKWebView()
-        webView.isOpaque = false
-        webView.backgroundColor = .clear
-        webView.scrollView.isScrollEnabled = false
-        
-        let embedHTML = """
-        <!DOCTYPE html>
-        <html>
-        <head>
-        <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; }
-        iframe { width: 100%; height: 100%; border: none; }
-        </style>
-        </head>
-        <body>
-        <iframe src="https://www.youtube-nocookie.com/embed/\(videoID)?autoplay=1&loop=1&playlist=\(videoID)&mute=0&controls=0" allow="autoplay"></iframe>
-        </body>
-        </html>
-        """
-        webView.loadHTMLString(embedHTML, baseURL: nil)
-        return webView
-    }
-
-    func updateUIView(_ uiView: WKWebView, context: Context) {}
 }
 
 struct WebPatchItem {
