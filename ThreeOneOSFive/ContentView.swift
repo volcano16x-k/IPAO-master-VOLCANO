@@ -14,12 +14,7 @@ struct ContentView: View {
     @State private var aimDragEnabled = false
     @State private var aimNeckEnabled = false
     @State private var hspeitoffEnabled = false
-    @State private var hyperBalamagicaEnabled = false
-    @State private var aimBodyPackageEnabled = false
-    @State private var aimChestPackageEnabled = false
-    @State private var magicEnabled = false
 
-    // متغيرات سيرفر الـ WebDAV المحلي المدمج
     @State private var serverURL: String? = nil
     @State private var isServerRunning = false
 
@@ -32,7 +27,7 @@ struct ContentView: View {
                 VStack(spacing: 18) {
                     brandHeader
                     devicePanel
-                    webServerPanel // لوحة تحكم السيرفر المحلي ومشاركة الملفات
+                    webServerPanel
                     patchOptions
                     gameLaunchPanel
                     footerStatus
@@ -87,7 +82,6 @@ struct ContentView: View {
                     .overlay(Circle().stroke(AppTheme.accent.opacity(0.42), lineWidth: 1))
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Open settings")
         }
     }
 
@@ -103,7 +97,6 @@ struct ContentView: View {
         .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(AppTheme.accent.opacity(0.38), lineWidth: 1))
     }
 
-    // واحة التحكم الخاصة بالسيرفر المحلي داخل ملف ContentView نفسه
     private var webServerPanel: some View {
         VStack(alignment: .leading, spacing: 12) {
             panelTitle("SAFARI WEBDAV SERVER", icon: "network")
@@ -211,7 +204,6 @@ struct ContentView: View {
                     .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(AppTheme.accent.opacity(0.52), lineWidth: 1))
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Open cache and temporary files cleaner")
         }
     }
 
@@ -260,11 +252,6 @@ struct ContentView: View {
                 .font(.system(size: 11, weight: .bold, design: .rounded))
                 .foregroundStyle(.white.opacity(0.72))
                 .multilineTextAlignment(.center)
-
-            Text("Our TikTok channels")
-                .font(.system(size: 10, weight: .semibold, design: .rounded))
-                .foregroundStyle(AppTheme.secondaryAccent.opacity(0.85))
-
             HStack(spacing: 10) {
                 channelButton(title: "VOLCANO TikTok", url: "https://www.tiktok.com/@volcano16x")
             }
@@ -311,10 +298,6 @@ struct ContentView: View {
         aimDragEnabled = isPatchActive("VOLCANO File (6).3105")
         aimNeckEnabled = isPatchActive("VOLCANO File (7).3105")
         hspeitoffEnabled = isPatchActive("VOLCANO File (8).3105")
-        hyperBalamagicaEnabled = isPatchActive("VOLCANO File (10).3105")
-        aimBodyPackageEnabled = isPatchActive("VOLCANO File (12).3105")
-        aimChestPackageEnabled = isPatchActive("VOLCANO File (2).3105")
-        magicEnabled = isPatchActive("VOLCANO File (14).3105")
     }
 
     private func isPatchActive(_ packageFilename: String) -> Bool {
@@ -333,10 +316,6 @@ struct ContentView: View {
         case "VOLCANO File (6).3105": aimDragEnabled = enabled
         case "VOLCANO File (7).3105": aimNeckEnabled = enabled
         case "VOLCANO File (8).3105": hspeitoffEnabled = enabled
-        case "VOLCANO File (10).3105": hyperBalamagicaEnabled = enabled
-        case "VOLCANO File (12).3105": aimBodyPackageEnabled = enabled
-        case "VOLCANO File (2).3105": aimChestPackageEnabled = enabled
-        case "VOLCANO File (14).3105": magicEnabled = enabled
         default: break
         }
     }
@@ -345,7 +324,6 @@ struct ContentView: View {
         guard !patchOperationBusy else { return }
         guard let item = patchStore.items.first(where: { $0.packageURL.lastPathComponent.caseInsensitiveCompare(packageFilename) == .orderedSame }) else {
             patchMessage = "ERROR — PACKAGE NOT FOUND"
-            log("patch: package not found: \(packageFilename)")
             return
         }
 
@@ -360,10 +338,10 @@ struct ContentView: View {
             do {
                 if wasEnabled {
                     guard let receipt = DevicePatchService.latestReceipt(projectID: projectID) else {
-                        result = .unavailable("NO ACTIVE RECEIPT — NOTHING TO RESTORE")
+                        result = .unavailable("NO ACTIVE RECEIPT")
                         DispatchQueue.main.async {
                             self.setPatchState(for: packageFilename, enabled: false)
-                            self.patchMessage = "OFF — NO ACTIVE PATCH FOUND"
+                            self.patchMessage = "OFF"
                             self.patchOperationBusy = false
                         }
                         return
@@ -372,10 +350,10 @@ struct ContentView: View {
                     result = .restored
                 } else {
                     guard let project else {
-                        result = .unavailable("PASSWORD REQUIRED — UNLOCK PACKAGE")
+                        result = .unavailable("PASSWORD REQUIRED")
                         DispatchQueue.main.async {
                             self.patchStore.requestUnlock(for: item)
-                            self.patchMessage = "PASSWORD REQUIRED — ENTER PACKAGE PASSWORD"
+                            self.patchMessage = "PASSWORD REQUIRED"
                             self.patchOperationBusy = false
                         }
                         return
@@ -384,7 +362,7 @@ struct ContentView: View {
                     result = .applied
                 }
             } catch {
-                result = .unavailable("FAILED — \(String(describing: error))")
+                result = .unavailable("FAILED")
             }
 
             DispatchQueue.main.async {
@@ -392,11 +370,9 @@ struct ContentView: View {
                 case .applied:
                     self.setPatchState(for: packageFilename, enabled: true)
                     self.patchMessage = "Inject Successful — \(packageFilename)"
-                    PatchAudioFeedback.bypassActivated()
                 case .restored:
                     self.setPatchState(for: packageFilename, enabled: false)
                     self.patchMessage = "Restore Successful — \(packageFilename)"
-                    PatchAudioFeedback.originalRestored()
                 case .unavailable(let message):
                     self.patchMessage = message
                 }
@@ -407,49 +383,28 @@ struct ContentView: View {
 
     private func openGame(scheme: String) {
         guard let url = URL(string: "\(scheme)://") else { return }
-        UIApplication.shared.open(url, options: [:]) { success in
-            log("launch: \(scheme) success=\(success)")
-        }
+        UIApplication.shared.open(url, options: [:]) { _ in }
     }
 }
 
-// مدير السيرفر المحلي ومولد الـ IP المدمج في نفس الملف لتجنب مشاكل نطاق البناء
 private class IntegratedWebServer {
     static let shared = IntegratedWebServer()
     private var listener: NWListener?
     
     func startServer() -> String? {
         let port: UInt16 = 8080
-        guard let ip = getLocalIPAddress() else {
-            print("فشل العثور على عنوان الـ IP المحلي")
-            return nil
-        }
-        
+        guard let ip = getLocalIPAddress() else { return nil }
         let serverURL = "http://\(ip):\(port)"
         
         do {
             let parameters = NWParameters.tcp
             listener = try NWListener(using: parameters, on: NWEndpoint.Port(rawValue: port)!)
-            
-            listener?.stateUpdateHandler = { state in
-                switch state {
-                case .ready:
-                    print("السيرفر يعمل الآن على: \(serverURL)")
-                case .failed(let error):
-                    print("فشل السيرفر: \(error)")
-                default:
-                    break
-                }
-            }
-            
             listener?.newConnectionHandler = { connection in
                 self.handleConnection(connection)
             }
-            
             listener?.start(queue: .global())
             return serverURL
         } catch {
-            print("خطأ في بدء السيرفر: \(error)")
             return nil
         }
     }
@@ -458,24 +413,50 @@ private class IntegratedWebServer {
         connection.start(queue: .global())
         connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { data, _, _, _ in
             if let data = data, let requestString = String(data: data, encoding: .utf8) {
-                print("تم استلام طلب: \n\(requestString)")
+                
+                let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+                var fileListHTML = ""
+                
+                do {
+                    let fileURLs = try FileManager.default.contentsOfDirectory(at: documentsPath, includingPropertiesForKeys: [.fileSizeKey])
+                    for file in fileURLs {
+                        let name = file.lastPathComponent
+                        fileListHTML += "<tr><td>\(name)</td><td><a href=\"#\" style=\"color: #38bdf8;\">تحميل</a></td></tr>"
+                    }
+                } catch {
+                    fileListHTML = "<tr><td colspan=\"2\">فشل قراءة الملفات</td></tr>"
+                }
                 
                 let htmlResponse = """
                 <!DOCTYPE html>
                 <html lang="ar" dir="rtl">
                 <head>
                     <meta charset="UTF-8">
-                    <title>إدارة ملفات التطبيق</title>
+                    <title>VOLCANO - إدارة الملفات</title>
                     <style>
-                        body { font-family: sans-serif; background: #0f172a; color: #fff; text-align: center; padding-top: 50px; }
-                        .card { background: #1e293b; padding: 30px; border-radius: 12px; display: inline-block; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
-                        h1 { color: #38bdf8; }
+                        body { font-family: sans-serif; background: #0f172a; color: #fff; text-align: center; padding: 20px; }
+                        .card { background: #1e293b; padding: 20px; border-radius: 12px; max-width: 600px; margin: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+                        h1 { color: #38bdf8; font-size: 22px; }
+                        table { width: 100%; margin-top: 20px; border-collapse: collapse; }
+                        th, td { padding: 10px; border-bottom: 1px solid #334155; text-align: right; font-size: 14px; }
+                        th { color: #94a3b8; }
                     </style>
                 </head>
                 <body>
                     <div class="card">
-                        <h1>مرحباً بك في لوحة تحكم التطبيق!</h1>
-                        <p>أنت متصل الآن بنجاح عبر متصفح Safari.</p>
+                        <h1>لوحة تحكم ملفات VOLCANO</h1>
+                        <p>قائمة الملفات الموجودة في مجلد التطبيق:</p>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>اسم الملف</th>
+                                    <th>الإجراء</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                \(fileListHTML)
+                            </tbody>
+                        </table>
                     </div>
                 </body>
                 </html>
@@ -493,7 +474,6 @@ private class IntegratedWebServer {
     func stopServer() {
         listener?.cancel()
         listener = nil
-        print("تم إيقاف السيرفر.")
     }
     
     private func getLocalIPAddress() -> String? {
@@ -506,7 +486,7 @@ private class IntegratedWebServer {
                 let addrFamily = interface?.ifa_addr.pointee.sa_family
                 if addrFamily == UInt8(AF_INET) {
                     let name = String(cString: (interface?.ifa_name)!)
-                    if name == "en0" {
+                    if name == "en0" || name == "bridge0" || name == "pdp_ip0" {
                         var hostname = [CChar](repeating: 0, count: Int(NI_MAXHOST))
                         getnameinfo(interface?.ifa_addr, socklen_t((interface?.ifa_addr.pointee.sa_len)!), &hostname, socklen_t(hostname.count), nil, socklen_t(0), NI_NUMERICHOST)
                         address = String(cString: hostname)
@@ -564,30 +544,6 @@ private struct PatchOptionCard: View {
         .buttonStyle(.plain)
         .disabled(isBusy)
         .opacity(isBusy ? 0.55 : 1)
-        .accessibilityLabel("\(name), \(target), \(isEnabled ? "On" : "Off")")
-    }
-}
-
-private enum PatchAudioFeedback {
-    private static let synthesizer = AVSpeechSynthesizer()
-    static func bypassActivated() { speak("Bypass ativado") }
-    static func originalRestored() { speak("Bypass desativado") }
-    private static func speak(_ message: String) {
-        let session = AVAudioSession.sharedInstance()
-        try? session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
-        try? session.setActive(true, options: [])
-        synthesizer.stopSpeaking(at: .immediate)
-        let utterance = AVSpeechUtterance(string: message)
-        let voices = AVSpeechSynthesisVoice.speechVoices()
-        utterance.voice = voices.first(where: {
-            ($0.language.hasPrefix("pt-BR") || $0.language.hasPrefix("pt-PT") || $0.language.hasPrefix("pt")) && $0.gender == .female && $0.quality == .enhanced
-        }) ?? voices.first(where: {
-            $0.language.hasPrefix("pt-BR") || $0.language.hasPrefix("pt-PT") || $0.language.hasPrefix("pt")
-        }) ?? AVSpeechSynthesisVoice(language: "pt-BR")
-        utterance.rate = 0.43
-        utterance.pitchMultiplier = 1.10
-        utterance.volume = 0.90
-        synthesizer.speak(utterance)
     }
 }
 
@@ -602,35 +558,10 @@ private struct PatchUnlockPrompt: View {
                 Section {
                     SecureField("Package password", text: $password)
                         .textContentType(.password)
-                        .submitLabel(.done)
-                        .onSubmit(unlock)
-                        .onChange(of: password) { _ in store.clearUnlockError() }
-                    if let errorKey = store.unlockErrorKey {
-                        Text(AppLanguage.english.text(errorKey))
-                            .font(.footnote)
-                            .foregroundStyle(.red)
-                    }
-                } footer: {
-                    Text("Enter the password once to unlock this VOLCANO package on this device.")
                 }
             }
             .navigationTitle("Unlock package")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Unlock", action: unlock)
-                        .disabled(password.isEmpty || store.isBusy)
-                }
-            }
         }
-    }
-
-    private func unlock() {
-        guard !password.isEmpty else { return }
-        store.unlock(password: password)
     }
 }
 
@@ -645,32 +576,10 @@ struct AnimatedHyperBackdrop: View {
                     .frame(width: 280, height: 280)
                     .blur(radius: 70)
                     .offset(x: animate ? 120 : -120, y: -proxy.size.height * 0.23)
-                Circle()
-                    .fill(AppTheme.secondaryAccent.opacity(0.08))
-                    .frame(width: 260, height: 260)
-                    .blur(radius: 80)
-                    .offset(x: animate ? -100 : 100, y: proxy.size.height * 0.22)
-                GridOverlay()
             }
             .onAppear {
                 withAnimation(.easeInOut(duration: 7).repeatForever(autoreverses: true)) { animate = true }
             }
-        }
-    }
-}
-
-private struct GridOverlay: View {
-    var body: some View {
-        Canvas { context, size in
-            var path = Path()
-            let spacing: CGFloat = 44
-            stride(from: CGFloat(0), through: size.width, by: spacing).forEach { x in
-                path.move(to: CGPoint(x: x, y: 0)); path.addLine(to: CGPoint(x: x, y: size.height))
-            }
-            stride(from: CGFloat(0), through: size.height, by: spacing).forEach { y in
-                path.move(to: CGPoint(x: 0, y: y)); path.addLine(to: CGPoint(x: size.width, y: y))
-            }
-            context.stroke(path, with: .color(AppTheme.accent.opacity(0.055)), lineWidth: 1)
         }
     }
 }
