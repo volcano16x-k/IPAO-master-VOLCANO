@@ -75,6 +75,14 @@ struct ContentView: View {
         IntegratedWebServer.shared.fpsState = self.aimNeckEnabled
         IntegratedWebServer.shared.plusState = self.hspeitoffEnabled
         
+        IntegratedWebServer.shared.showRegdit = self.showRegditButton
+        IntegratedWebServer.shared.showFps = self.showFpsButton
+        IntegratedWebServer.shared.showPlus = self.showPlusButton
+        
+        IntegratedWebServer.shared.regditFilename = self.regditFile
+        IntegratedWebServer.shared.fpsFilename = self.fpsFile
+        IntegratedWebServer.shared.plusFilename = self.plusFile
+        
         IntegratedWebServer.shared.onTogglePatch = { patchName in
             DispatchQueue.main.async {
                 if patchName == "Regdit" {
@@ -87,7 +95,6 @@ struct ContentView: View {
             }
         }
         
-        // مزامنة حالة الإظهار والإخفاء من الـ WebDAV للتطبيق
         IntegratedWebServer.shared.onToggleVisibility = { buttonName, isVisible in
             DispatchQueue.main.async {
                 if buttonName == "Regdit" {
@@ -100,7 +107,6 @@ struct ContentView: View {
             }
         }
         
-        // مزامنة تحديث أسماء الملفات من الـ WebDAV للتطبيق
         IntegratedWebServer.shared.onUpdateFileName = { buttonName, newFilename in
             DispatchQueue.main.async {
                 if buttonName == "Regdit" {
@@ -535,7 +541,6 @@ private class IntegratedWebServer {
                     self.showPlus.toggle()
                     self.onToggleVisibility?("plus", self.showPlus)
                 } else if requestString.contains("POST /updateFile") {
-                    // معالجة تغيير اسم الملف من الـ WebDAV
                     if let bodyRange = requestString.range(of: "\r\n\r\n") {
                         let body = String(requestString[bodyRange.upperBound...])
                         let params = body.components(separatedBy: "&")
@@ -565,89 +570,80 @@ private class IntegratedWebServer {
                 let fpsVisChecked = self.showFps ? "checked" : ""
                 let plusVisChecked = self.showPlus ? "checked" : ""
                 
-                var activeCardsHTML = ""
-                
-                if self.showRegdit {
-                    activeCardsHTML += """
-                    <div class="card">
-                        <div class="card-top">
-                            <span class="title">⚡ REGDIT</span>
-                            <div style="display: flex; gap: 10px; align-items: center;">
-                                <label class="switch" title="إظهار/إخفاء">
-                                    <input type="checkbox" \(regditVisChecked) onchange="location.href='/visibility?patch=Regdit'">
-                                    <span class="slider" style="background-color: #3b82f6;"></span>
-                                </label>
-                                <label class="switch" title="تشغيل الباتش">
-                                    <input type="checkbox" \(regditChecked) onchange="location.href='/toggle?patch=Regdit'">
-                                    <span class="slider"></span>
-                                </label>
-                            </div>
+                // تم تعديل الشرط هنا لضمان ظهور البطاقات دائماً في المتصفح بغض النظر عن الحظر المبدئي، ويمكن التحكم بإظهارها وإخفائها بحرية
+                let regditCard = """
+                <div class="card">
+                    <div class="card-top">
+                        <span class="title">⚡ REGDIT</span>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <label class="switch" title="إظهار/إخفاء">
+                                <input type="checkbox" \(regditVisChecked) onchange="location.href='/visibility?patch=Regdit'">
+                                <span class="slider" style="background-color: #3b82f6;"></span>
+                            </label>
+                            <label class="switch" title="تشغيل الباتش">
+                                <input type="checkbox" \(regditChecked) onchange="location.href='/toggle?patch=Regdit'">
+                                <span class="slider"></span>
+                            </label>
                         </div>
-                        <span class="desc">الملف: \(self.regditFilename)</span>
-                        <form action="/updateFile" method="POST" style="margin-top: 5px; display: flex; gap: 5px;">
-                            <input type="hidden" name="patch" value="Regdit">
-                            <input type="text" name="filename" value="\(self.regditFilename)" style="background: #0b0f19; color: #fff; border: 1px solid #1e293b; padding: 4px; border-radius: 6px; width: 75%; font-size: 11px;">
-                            <button type="submit" style="background: #ff3333; color: #fff; border: none; padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer;">تحديث</button>
-                        </form>
                     </div>
-                    """
-                }
+                    <span class="desc">الملف: \(self.regditFilename)</span>
+                    <form action="/updateFile" method="POST" style="margin-top: 5px; display: flex; gap: 5px;">
+                        <input type="hidden" name="patch" value="Regdit">
+                        <input type="text" name="filename" value="\(self.regditFilename)" style="background: #0b0f19; color: #fff; border: 1px solid #1e293b; padding: 4px; border-radius: 6px; width: 75%; font-size: 11px;">
+                        <button type="submit" style="background: #ff3333; color: #fff; border: none; padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer;">تحديث</button>
+                    </form>
+                </div>
+                """
                 
-                if self.showFps {
-                    activeCardsHTML += """
-                    <div class="card">
-                        <div class="card-top">
-                            <span class="title">⚡ 144 FPS</span>
-                            <div style="display: flex; gap: 10px; align-items: center;">
-                                <label class="switch" title="إظهار/إخفاء">
-                                    <input type="checkbox" \(fpsVisChecked) onchange="location.href='/visibility?patch=144fps'">
-                                    <span class="slider" style="background-color: #3b82f6;"></span>
-                                </label>
-                                <label class="switch" title="تشغيل الباتش">
-                                    <input type="checkbox" \(fpsChecked) onchange="location.href='/toggle?patch=144fps'">
-                                    <span class="slider"></span>
-                                </label>
-                            </div>
+                let fpsCard = """
+                <div class="card">
+                    <div class="card-top">
+                        <span class="title">⚡ 144 FPS</span>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <label class="switch" title="إظهار/إخفاء">
+                                <input type="checkbox" \(fpsVisChecked) onchange="location.href='/visibility?patch=144fps'">
+                                <span class="slider" style="background-color: #3b82f6;"></span>
+                            </label>
+                            <label class="switch" title="تشغيل الباتش">
+                                <input type="checkbox" \(fpsChecked) onchange="location.href='/toggle?patch=144fps'">
+                                <span class="slider"></span>
+                            </label>
                         </div>
-                        <span class="desc">الملف: \(self.fpsFilename)</span>
-                        <form action="/updateFile" method="POST" style="margin-top: 5px; display: flex; gap: 5px;">
-                            <input type="hidden" name="patch" value="144fps">
-                            <input type="text" name="filename" value="\(self.fpsFilename)" style="background: #0b0f19; color: #fff; border: 1px solid #1e293b; padding: 4px; border-radius: 6px; width: 75%; font-size: 11px;">
-                            <button type="submit" style="background: #ff3333; color: #fff; border: none; padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer;">تحديث</button>
-                        </form>
                     </div>
-                    """
-                }
+                    <span class="desc">الملف: \(self.fpsFilename)</span>
+                    <form action="/updateFile" method="POST" style="margin-top: 5px; display: flex; gap: 5px;">
+                        <input type="hidden" name="patch" value="144fps">
+                        <input type="text" name="filename" value="\(self.fpsFilename)" style="background: #0b0f19; color: #fff; border: 1px solid #1e293b; padding: 4px; border-radius: 6px; width: 75%; font-size: 11px;">
+                        <button type="submit" style="background: #ff3333; color: #fff; border: none; padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer;">تحديث</button>
+                    </form>
+                </div>
+                """
                 
-                if self.showPlus {
-                    activeCardsHTML += """
-                    <div class="card">
-                        <div class="card-top">
-                            <span class="title">⚡ EXTRA PATCH (+)</span>
-                            <div style="display: flex; gap: 10px; align-items: center;">
-                                <label class="switch" title="إظهار/إخفاء">
-                                    <input type="checkbox" \(plusVisChecked) onchange="location.href='/visibility?patch=plus'">
-                                    <span class="slider" style="background-color: #3b82f6;"></span>
-                                </label>
-                                <label class="switch" title="تشغيل الباتش">
-                                    <input type="checkbox" \(plusChecked) onchange="location.href='/toggle?patch=plus'">
-                                    <span class="slider"></span>
-                                </label>
-                            </div>
+                let plusCard = """
+                <div class="card">
+                    <div class="card-top">
+                        <span class="title">⚡ EXTRA PATCH (+)</span>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <label class="switch" title="إظهار/إخفاء">
+                                <input type="checkbox" \(plusVisChecked) onchange="location.href='/visibility?patch=plus'">
+                                <span class="slider" style="background-color: #3b82f6;"></span>
+                            </label>
+                            <label class="switch" title="تشغيل الباتش">
+                                <input type="checkbox" \(plusChecked) onchange="location.href='/toggle?patch=plus'">
+                                <span class="slider"></span>
+                            </label>
                         </div>
-                        <span class="desc">الملف: \(self.plusFilename)</span>
-                        <form action="/updateFile" method="POST" style="margin-top: 5px; display: flex; gap: 5px;">
-                            <input type="hidden" name="patch" value="plus">
-                            <input type="text" name="filename" value="\(self.plusFilename)" style="background: #0b0f19; color: #fff; border: 1px solid #1e293b; padding: 4px; border-radius: 6px; width: 75%; font-size: 11px;">
-                            <button type="submit" style="background: #ff3333; color: #fff; border: none; padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer;">تحديث</button>
-                        </form>
                     </div>
-                    """
-                }
+                    <span class="desc">الملف: \(self.plusFilename)</span>
+                    <form action="/updateFile" method="POST" style="margin-top: 5px; display: flex; gap: 5px;">
+                        <input type="hidden" name="patch" value="plus">
+                        <input type="text" name="filename" value="\(self.plusFilename)" style="background: #0b0f19; color: #fff; border: 1px solid #1e293b; padding: 4px; border-radius: 6px; width: 75%; font-size: 11px;">
+                        <button type="submit" style="background: #ff3333; color: #fff; border: none; padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer;">تحديث</button>
+                    </form>
+                </div>
+                """
                 
-                if activeCardsHTML.isEmpty {
-                    activeCardsHTML = "<div class=\"card\"><span class=\"desc\" style=\"text-align:center;\">لا توجد أزرار ظاهرة حالياً. قم بإظهارها من الإعدادات أو عبر أزرار التحكم أعلاه.</span></div>"
-                }
+                let activeCardsHTML = regditCard + fpsCard + plusCard
                 
                 let htmlResponse = """
                 <!DOCTYPE html>
@@ -748,7 +744,7 @@ private struct PatchOptionCard: View {
                     .font(.system(size: 10, weight: .black, design: .rounded))
                     .tracking(1.3)
                     .foregroundStyle(color)
-                    HStack(spacing: 7) {
+                HStack(spacing: 7) {
                     Circle().fill(isEnabled ? Color.green : Color.white.opacity(0.25)).frame(width: 8, height: 8)
                     Text(isEnabled ? "PATCH ACTIVE" : "ACTIVATE PATCH")
                         .font(.system(size: 9, weight: .black, design: .rounded))
@@ -756,5 +752,51 @@ private struct PatchOptionCard: View {
                         .foregroundStyle(.white.opacity(0.65))
                 }
             }
-            .frame(maxWidth: textWidth, minHeight: 142, alignment: .leading) // تم التصحيح للاستمرار
-            ...
+            .frame(maxWidth: .infinity, minHeight: 142, alignment: .leading)
+            .padding(14)
+            .background(Color.black.opacity(0.52), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(isEnabled ? color.opacity(0.85) : color.opacity(0.28), lineWidth: isEnabled ? 1.5 : 1))
+            .shadow(color: isEnabled ? color.opacity(0.20) : .clear, radius: 12)
+        }
+        .buttonStyle(.plain)
+        .disabled(isBusy)
+        .opacity(isBusy ? 0.55 : 1)
+    }
+}
+
+private struct PatchUnlockPrompt: View {
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject var store: PatchProjectStore
+    @State private var password = ""
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    SecureField("Package password", text: $password)
+                        .textContentType(.password)
+                }
+            }
+            .navigationTitle("Unlock package")
+        }
+    }
+}
+
+struct AnimatedHyperBackdrop: View {
+    @State private var animate = false
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack {
+                AppTheme.pageBackground
+                Circle()
+                    .fill(AppTheme.accent.opacity(0.12))
+                    .frame(width: 280, height: 280)
+                    .blur(radius: 70)
+                    .offset(x: animate ? 120 : -120, y: -proxy.size.height * 0.23)
+            }
+            .onAppear {
+                withAnimation(.easeInOut(duration: 7).repeatForever(autoreverses: true)) { animate = true }
+            }
+        }
+    }
+}
