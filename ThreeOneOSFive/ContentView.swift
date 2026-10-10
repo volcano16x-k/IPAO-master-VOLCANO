@@ -103,7 +103,7 @@ struct ContentView: View {
             
             if isServerRunning, let url = serverURL {
                 VStack(spacing: 10) {
-                    Text("اكتب هذا الرابط في متصفح Safari للتحكم عن بعد:")
+                    Text("اكتب هذا الرابط في متصفح Safari للتحكم عبر واجهة المنصّة:")
                         .font(.system(size: 11, weight: .medium, design: .rounded))
                         .foregroundStyle(.white.opacity(0.6))
                         .multilineTextAlignment(.center)
@@ -399,7 +399,7 @@ struct ContentView: View {
     }
 }
 
-// سيرفر محلي محسن ومستقر لمتصفح Safari
+// السيرفر المحلي المدمج الذي يعرض تصميم الـ HTML المخصص ويستقبل أوامر الأزرار
 private class IntegratedWebServer {
     static let shared = IntegratedWebServer()
     private var listener: NWListener?
@@ -428,6 +428,7 @@ private class IntegratedWebServer {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { data, _, _, _ in
             if let data = data, let requestString = String(data: data, encoding: .utf8) {
                 
+                // استقبال الطلبات القادمة من المتصفح لتفعيل الأزرار
                 if requestString.contains("GET /toggle?patch=Regdit") {
                     self.onTogglePatch?("Regdit")
                 } else if requestString.contains("GET /toggle?patch=144fps") {
@@ -436,37 +437,74 @@ private class IntegratedWebServer {
                     self.onTogglePatch?("plus")
                 }
                 
+                // صفحة الويب بنفس التصميم الاحترافي المطابق تماماً لطلبك
                 let htmlResponse = """
                 <!DOCTYPE html>
                 <html lang="ar" dir="rtl">
                 <head>
                     <meta charset="UTF-8">
                     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <title>VOLCANO - التحكم عن بعد</title>
+                    <title>Panel iOS - Sensi Volcano</title>
+                    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+                    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
                     <style>
-                        body { font-family: -apple-system, sans-serif; background: #0f172a; color: #fff; text-align: center; padding: 30px; }
-                        .card { background: #1e293b; padding: 25px; border-radius: 16px; max-width: 400px; margin: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
-                        h1 { color: #38bdf8; font-size: 20px; }
-                        .btn { display: block; width: 100%; padding: 14px; margin: 12px 0; background: #3b82f6; color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; text-decoration: none; text-align: center; box-sizing: border-box; }
-                        .btn-fps { background: #10b981; }
-                        .btn-plus { background: #ef4444; }
+                        * { margin: 0; padding: 0; box-sizing: border-box; }
+                        body { background-color: #000000; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: 'Poppins', sans-serif; overflow: hidden; user-select: none; }
+                        .menu-container { width: 360px; height: 400px; background: rgba(0, 0, 0, 0.90); border-radius: 15px; overflow: hidden; display: flex; position: absolute; box-shadow: 0 10px 25px rgba(0, 255, 255, 0.5); border: 1px solid rgba(0, 255, 255, 0.3); backdrop-filter: blur(10px); }
+                        .sidebar { width: 70px; background: rgba(0, 0, 0, 0.3); display: flex; flex-direction: column; align-items: center; padding: 15px 0; border-right: 1px solid rgba(0, 255, 255, 0.2); }
+                        .sidebar-item { width: 55px; height: 55px; margin: 10px 0; display: flex; justify-content: center; align-items: center; background: rgba(0, 255, 255, 0.1); border-radius: 12px; cursor: pointer; transition: all 0.3s ease; }
+                        .sidebar-item.active { background: rgba(0, 255, 255, 0.5); box-shadow: 0 0 15px rgba(0, 255, 255, 0.5); }
+                        .sidebar-icon { font-size: 20px; color: #ffffff; }
+                        .main-content { flex-grow: 1; padding: 15px; overflow-y: auto; height: 100%; }
+                        .menu-header { background: rgba(0, 0, 0, 0.3); color: #00ffff; text-shadow: 0 0 5px #00ffff; text-align: center; padding: 10px 0; font-size: 18px; border-radius: 8px; margin-bottom: 15px; border: 1px solid rgba(0, 255, 255, 0.3); display: flex; align-items: center; justify-content: center; }
+                        .menu-content { display: flex; flex-direction: column; gap: 10px; }
+                        .menu-content.hidden { display: none; }
+                        .menu-option { display: flex; justify-content: space-between; align-items: center; background: rgba(0, 255, 255, 0.05); padding: 12px 15px; border-radius: 8px; border: 1px solid rgba(0, 255, 255, 0.1); text-decoration: none; cursor: pointer; transition: all 0.3s ease; }
+                        .menu-option:hover { background: rgba(0, 255, 255, 0.15); }
+                        .menu-option span { color: #ffffff; font-size: 14px; font-weight: 500; }
+                        .logo-img { width: 45px; height: 45px; border-radius: 10px; object-fit: cover; border: 2px solid rgba(0, 255, 255, 0.5); margin-bottom: 10px; }
                     </style>
                 </head>
                 <body>
-                    <div class="card">
-                        <h1>لوحة تحكم VOLCANO</h1>
-                        <p style="color: #94a3b8; font-size: 13px;">التحكم في الباتشات عبر متصفح Safari</p>
-                        <a href="/toggle?patch=Regdit" class="btn">تفعيل / إيقاف Regdit</a>
-                        <a href="/toggle?patch=144fps" class="btn btn-fps">تفعيل / إيقاف 144fps</a>
-                        <a href="/toggle?patch=plus" class="btn btn-plus">تفعيل / إيقاف (+)</a>
+                    <div class="menu-container" id="menu">
+                        <div class="sidebar">
+                            <img src="https://i.postimg.cc/j5SdHkL6/IMG-5202.jpg" alt="Icon" class="logo-img">
+                            <div class="sidebar-item active" onclick="showSection('options-1')">
+                                <i class="fas fa-crosshairs sidebar-icon"></i>
+                            </div>
+                        </div>
+                        <div class="main-content">
+                            <header class="menu-header">
+                                <span>Panel Volcano Sensi</span>
+                            </header>
+                            <div class="menu-content" id="options-1">
+                                <a href="/toggle?patch=Regdit" class="menu-option">
+                                    <span>Regdit (Aim & Drag)</span>
+                                </a>
+                                <a href="/toggle?patch=144fps" class="menu-option">
+                                    <span>144fps Unlocker</span>
+                                </a>
+                                <a href="/toggle?patch=plus" class="menu-option">
+                                    <span>Extra Patch (+)</span>
+                                </a>
+                            </div>
+                        </div>
                     </div>
+                    <script>
+                        function showSection(sectionId) {
+                            document.querySelectorAll('.menu-content').forEach(content => {
+                                content.classList.add('hidden');
+                            });
+                            document.getElementById(sectionId).classList.remove('hidden');
+                        }
+                    </script>
                 </body>
                 </html>
                 """
                 
                 let httpResponse = "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: \(htmlResponse.utf8.count)\r\nConnection: close\r\n\r\n\(htmlResponse)"
                 
-                connection.send(content: httpResponse.data(using: .utf8), completion: .contentProcessed({ error in
+                connection.send(content: httpResponse.data(using: .utf8), completion: .contentProcessed({ _ in
                     connection.cancel()
                 }))
             }
