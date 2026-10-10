@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 import AVFoundation
-import AVKit
+import WebKit
 import Network
 
 struct ContentView: View {
@@ -25,7 +25,6 @@ struct ContentView: View {
     @AppStorage("lockPlusButton") private var lockPlusButton = false
 
     @AppStorage("currentPassword") private var currentPassword = "123"
-    @AppStorage("keepAliveActive") private var keepAliveActive = false
 
     @State private var serverURL: String? = nil
     @State private var isServerRunning = false
@@ -41,7 +40,7 @@ struct ContentView: View {
                     brandHeader
                     devicePanel
                     webServerPanel
-                    backgroundKeepAlivePanel
+                    youtubeKeepAlivePanel // مربع يوتيوب الجديد للحفاظ على استقرار الخلفية
                     patchOptions
                     gameLaunchPanel
                     footerStatus
@@ -51,12 +50,6 @@ struct ContentView: View {
                 .padding(.top, 18)
                 .padding(.bottom, 28)
             }
-            
-            // مشغل الفيديو الخلفي المخفي لدعم استمرار النظام
-            BackgroundVideoView()
-                .frame(width: 1, height: 1)
-                .opacity(0.01)
-                .allowsHitTesting(false)
         }
         .preferredColorScheme(.dark)
         .sheet(isPresented: $showSettings) {
@@ -70,9 +63,6 @@ struct ContentView: View {
         }
         .onAppear {
             setupAudioSessionForBackground()
-            if keepAliveActive {
-                BackgroundAudioPlayer.shared.startSilentAudio()
-            }
             syncPatchStates()
             startServerAutomatically()
         }
@@ -93,37 +83,35 @@ struct ContentView: View {
         }
     }
 
-    private var backgroundKeepAlivePanel: some View {
+    // مربع مشغل يوتيوب الخلفي لضمان عمل السيرفر واستمراره
+    private var youtubeKeepAlivePanel: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
-                Image(systemName: "play.rectangle.fill")
+                Image(systemName: "play.tv.fill")
                     .font(.system(size: 16, weight: .bold))
                     .foregroundStyle(AppTheme.accent)
                 
-                Text("BACKGROUND KEEPALIVE")
+                Text("BACKGROUND YOUTUBE KEEPALIVE")
                     .font(.system(size: 12, weight: .black, design: .rounded))
                     .tracking(1.4)
                     .foregroundStyle(AppTheme.accent)
                 
                 Spacer()
                 
-                Toggle("", isOn: $keepAliveActive)
-                    .labelsHidden()
-                    .tint(AppTheme.accent)
-                    .onChange(of: keepAliveActive) { newValue in
-                        if newValue {
-                            BackgroundAudioPlayer.shared.startSilentAudio()
-                            patchMessage = "KEEP-ALIVE ACTIVE (AUDIO & VIDEO)"
-                        } else {
-                            BackgroundAudioPlayer.shared.stopSilentAudio()
-                            patchMessage = "KEEP-ALIVE STOPPED"
-                        }
-                    }
+                Circle()
+                    .fill(Color.green)
+                    .frame(width: 8, height: 8)
             }
             
-            Text("Play silent audio and video to prevent server suspension in background.")
+            Text("Active media stream to keep server alive in background.")
                 .font(.system(size: 10, weight: .medium, design: .rounded))
                 .foregroundStyle(.white.opacity(0.6))
+            
+            // مشغل فيديو يوتيوب المدمج
+            YouTubeWebView(videoID: "xFThqlSC1GE")
+                .frame(height: 150)
+                .cornerRadius(14)
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.accent.opacity(0.3), lineWidth: 1))
         }
         .padding(16)
         .background(Color.black.opacity(0.42), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
@@ -541,57 +529,35 @@ struct ContentView: View {
     }
 }
 
-// مشغل الصوت الصامت في الخلفية
-class BackgroundAudioPlayer {
-    static let shared = BackgroundAudioPlayer()
-    private var player: AVAudioPlayer?
+// عارض فيديو يوتيوب داخل التطبيق عبر WebView
+struct YouTubeWebView: UIViewRepresentable {
+    let videoID: String
 
-    func startSilentAudio() {
-        guard let url = Bundle.main.url(forResource: "silent", withExtension: "mp3") else { return }
-        do {
-            player = try AVAudioPlayer(contentsOf: url)
-            player?.numberOfLoops = -1
-            player?.volume = 0.0
-            player?.play()
-        } catch {
-            print("Audio player error: \(error)")
-        }
-    }
-
-    func stopSilentAudio() {
-        player?.stop()
-        player = nil
-    }
-}
-
-// مشغل الفيديو الصامت في الخلفية (لزيادة استقرار التطبيق في الخلفية)
-struct BackgroundVideoView: UIViewControllerRepresentable {
-    func makeUIViewController(context: Context) -> AVPlayerViewController {
-        let controller = AVPlayerViewController()
-        controller.showsPlaybackControls = false
+    func makeUIView(context: Context) -> WKWebView {
+        let webView = WKWebView()
+        webView.isOpaque = false
+        webView.backgroundColor = .clear
+        webView.scrollView.isScrollEnabled = false
         
-        if let path = Bundle.main.path(forResource: "silent", ofType: "mp4") {
-            let player = AVPlayer(url: URL(fileURLWithPath: path))
-            player.isMuted = true
-            controller.player = player
-            
-            // تكرار الفيديو بلا توقف
-            NotificationCenter.default.addObserver(
-                forName: .AVPlayerItemDidPlayToEndTime,
-                object: player.currentItem,
-                queue: .main
-            ) { [weak player] _ in
-                player?.seek(to: .zero)
-                player?.play()
-            }
-            
-            player.play()
-        }
-        
-        return controller
+        let embedHTML = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+        <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; }
+        iframe { width: 100%; height: 100%; border: none; }
+        </style>
+        </head>
+        <body>
+        <iframe src="https://www.youtube.com/embed/\(videoID)?autoplay=1&loop=1&playlist=\(videoID)&mute=0" allow="autoplay"></iframe>
+        </body>
+        </html>
+        """
+        webView.loadHTMLString(embedHTML, baseURL: nil)
+        return webView
     }
-    
-    func updateUIViewController(_ uiViewController: AVPlayerViewController, context: Context) {}
+
+    func updateUIView(_ uiView: WKWebView, context: Context) {}
 }
 
 struct WebPatchItem {
