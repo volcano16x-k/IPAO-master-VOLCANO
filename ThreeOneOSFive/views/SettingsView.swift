@@ -6,6 +6,17 @@ struct SettingsView: View {
     @EnvironmentObject private var appState: AppState
     @AppStorage(AppLanguage.storageKey) private var languageCode = AppLanguage.english.rawValue
 
+    // المتغيرات الجديدة الخاصة بالتحكم بالأزرار وكلمة المرور
+    @AppStorage("isButtonsUnlocked") private var isButtonsUnlocked = false
+    @AppStorage("currentPassword") private var currentPassword = "123" // كلمة المرور الافتراضية الأولية
+    
+    @State private var showingPasswordAlert = false
+    @State private var inputPassword = ""
+    @State private var passwordError = false
+    
+    @State private var showingChangePasswordSheet = false
+    @State private var newPasswordInput = ""
+
     var body: some View {
         NavigationStack {
             Form {
@@ -19,6 +30,33 @@ struct SettingsView: View {
                         }
                     }
                     .padding(.vertical, 4)
+                }
+
+                // قسم الأمان وحماية الأزرار الجديد
+                Section(header: Text("إعدادات التحكم والأمان")) {
+                    Toggle(isOn: Binding(
+                        get: { isButtonsUnlocked },
+                        set: { newValue in
+                            if newValue {
+                                // عند محاولة التفعيل، اطلب كلمة المرور
+                                showingPasswordAlert = true
+                            } else {
+                                // عند الإيقاف، إغلاق القفل وإخفاء الأزرار
+                                isButtonsUnlocked = false
+                            }
+                        }
+                    )) {
+                        Text("تفعيل إظهار وتخصيص الأزرار")
+                    }
+                    
+                    if isButtonsUnlocked {
+                        Button(action: {
+                            showingChangePasswordSheet = true
+                        }) {
+                            Text("تغيير كلمة المرور الحالية")
+                                .foregroundColor(AppTheme.accent)
+                        }
+                    }
                 }
 
                 Section(language.text("settings.language")) {
@@ -73,6 +111,50 @@ struct SettingsView: View {
                     Button(language.text("common.done")) { dismiss() }
                         .fontWeight(.semibold)
                 }
+            }
+            // نافذة إدخال كلمة المرور عند تفعيل الزر
+            .alert("أدخل كلمة المرور للتفعيل", isPresented: $showingPasswordAlert) {
+                SecureField("كلمة المرور", text: $inputPassword)
+                Button("تأكيد") {
+                    if inputPassword == currentPassword {
+                        isButtonsUnlocked = true
+                        passwordError = false
+                    } else {
+                        isButtonsUnlocked = false
+                        passwordError = true
+                    }
+                    inputPassword = ""
+                }
+                Button("إلغاء", role: .cancel) {
+                    isButtonsUnlocked = false
+                    inputPassword = ""
+                }
+            } message: {
+                Text(passwordError ? "كلمة المرور غير صحيحة. حاول مرة أخرى." : "يرجى إدخال كلمة المرور للوصول إلى التحكم بالأزرار.")
+            }
+            // شاشة تغيير كلمة المرور
+            .sheet(isPresented: $showingChangePasswordSheet) {
+                VStack(spacing: 20) {
+                    Text("تغيير كلمة المرور").font(.headline)
+                    SecureField("كلمة المرور الجديدة", text: $newPasswordInput)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .padding(.horizontal)
+                    
+                    Button("حفظ كلمة المرور") {
+                        if !newPasswordInput.isEmpty {
+                            currentPassword = newPasswordInput
+                            newPasswordInput = ""
+                            showingChangePasswordSheet = false
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    
+                    Button("إلغاء") {
+                        showingChangePasswordSheet = false
+                    }
+                    .foregroundColor(.red)
+                }
+                .padding()
             }
         }
     }
