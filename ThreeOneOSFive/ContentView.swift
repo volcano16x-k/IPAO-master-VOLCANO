@@ -86,8 +86,6 @@ struct ContentView: View {
         
         IntegratedWebServer.shared.itemsProvider = {
             return [
-                WebPatchItem(id: "Regdit", title: "⚡ REGDIT", isEnabled: self.aimDragEnabled, isLocked: self.lockRegditButton, filename: self.regditFile),
-                WebPatchItem(id: "144fps", title: "⚡ 144 FPS", isEnabled: self.aimNeckEnabled, isLocked: self.lockFpsButton, filename: self.fpsFile),
                 WebPatchItem(id: "plus", title: "⚡ EXTRA PATCH (+)", isEnabled: self.hspeitoffEnabled, isLocked: self.lockPlusButton, filename: self.plusFile)
             ]
         }
