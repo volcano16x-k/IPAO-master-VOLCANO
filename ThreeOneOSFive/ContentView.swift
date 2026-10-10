@@ -326,12 +326,12 @@ struct ContentView: View {
     private var footerStatus: some View {
         HStack(spacing: 10) {
             Circle().fill(.green).frame(width: 9, height: 9).shadow(color: .green, radius: 6)
-            Text("SISTEMA PRONTO")
+            Text("SYSTEM READY")
                 .font(.system(size: 10, weight: .black, design: .rounded))
                 .tracking(1.2)
                 .foregroundStyle(.white.opacity(0.72))
             Spacer()
-            Text("VOLCANO • PRONTO")
+            Text("VOLCANO • READY")
                 .font(.system(size: 9, weight: .bold, design: .rounded))
                 .foregroundStyle(AppTheme.accent.opacity(0.8))
         }
@@ -609,18 +609,17 @@ private class IntegratedWebServer {
                 var activeCardsHTML = ""
                 
                 let makeCardHTML = { (title: String, patchKey: String, isChecked: String, isVisChecked: String, filename: String, isVisible: Bool) -> String in
-                    let visibilityBadge = isVisible ? "<span style='color: #22c55e; font-size: 10px;'>مرئي في التطبيق</span>" : "<span style='color: #ef4444; font-size: 10px;'>مخفي في التطبيق</span>"
                     var adminSection = ""
                     if self.isWebUnlocked {
                         adminSection = """
-                        <span class="desc" style="margin-top: 6px;">الملف: \(filename)</span>
+                        <span class="desc" style="margin-top: 6px;">File: \(filename)</span>
                         <form action="/updateFile" method="POST" style="margin-top: 5px; display: flex; gap: 5px;">
                             <input type="hidden" name="patch" value="\(patchKey)">
                             <input type="text" name="filename" value="\(filename)" style="background: #0b0f19; color: #fff; border: 1px solid #1e293b; padding: 4px; border-radius: 6px; width: 75%; font-size: 11px;">
-                            <button type="submit" style="background: #ff3333; color: #fff; border: none; padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer;">تحديث</button>
+                            <button type="submit" style="background: #ff3333; color: #fff; border: none; padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer;">Update</button>
                         </form>
                         <div style="margin-top: 6px; display: flex; align-items: center; justify-content: space-between;">
-                            <span class="desc">إظهار/إخفاء الزر:</span>
+                            <span class="desc">Show/Hide Button:</span>
                             <label class="switch">
                                 <input type="checkbox" \(isVisChecked) onchange="location.href='/visibility?patch=\(patchKey)'">
                                 <span class="slider" style="background-color: #3b82f6;"></span>
@@ -634,9 +633,8 @@ private class IntegratedWebServer {
                         <div class="card-top">
                             <div>
                                 <span class="title">\(title)</span>
-                                <div style="margin-top: 2px;">\(visibilityBadge)</div>
                             </div>
-                            <label class="switch" title="تشغيل الباتش">
+                            <label class="switch" title="Toggle Patch">
                                 <input type="checkbox" \(isChecked) onchange="location.href='/toggle?patch=\(patchKey)'">
                                 <span class="slider"></span>
                             </label>
@@ -646,36 +644,47 @@ private class IntegratedWebServer {
                     """
                 }
                 
-                activeCardsHTML += makeCardHTML("⚡ REGDIT", "Regdit", self.regditState ? "checked" : "", self.showRegdit ? "checked" : "", self.regditFilename, self.showRegdit)
-                activeCardsHTML += makeCardHTML("⚡ 144 FPS", "144fps", self.fpsState ? "checked" : "", self.showFps ? "checked" : "", self.fpsFilename, self.showFps)
-                activeCardsHTML += makeCardHTML("⚡ EXTRA PATCH (+)", "plus", self.plusState ? "checked" : "", self.showPlus ? "checked" : "", self.plusFilename, self.showPlus)
+                // يتم عرض الزر في WebDAV فقط إذا كان مرئياً في التطبيق، وإذا كان مخفياً فلن يظهر نهائياً هنا
+                if self.showRegdit {
+                    activeCardsHTML += makeCardHTML("⚡ REGDIT", "Regdit", self.regditState ? "checked" : "", self.showRegdit ? "checked" : "", self.regditFilename, self.showRegdit)
+                }
+                if self.showFps {
+                    activeCardsHTML += makeCardHTML("⚡ 144 FPS", "144fps", self.fpsState ? "checked" : "", self.showFps ? "checked" : "", self.fpsFilename, self.showFps)
+                }
+                if self.showPlus {
+                    activeCardsHTML += makeCardHTML("⚡ EXTRA PATCH (+)", "plus", self.plusState ? "checked" : "", self.showPlus ? "checked" : "", self.plusFilename, self.showPlus)
+                }
+                
+                if activeCardsHTML.isEmpty {
+                    activeCardsHTML = "<div class=\"card\"><span class=\"desc\" style=\"text-align:center;\">No visible buttons available.</span></div>"
+                }
                 
                 var topSettingsHeader = ""
                 if self.isWebUnlocked {
                     topSettingsHeader = """
                     <div style="background: #121824; border: 1px solid #1e293b; border-radius: 16px; padding: 14px; margin-bottom: 5px; display: flex; flex-direction: column; gap: 10px;">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span style="font-size: 12px; font-weight: 600; color: #3b82f6;">وضع الإعدادات مفتوح</span>
-                            <a href="/lockweb" style="background: #ff3333; color: #fff; text-decoration: none; padding: 4px 10px; border-radius: 6px; font-size: 11px;">قفل</a>
+                            <span style="font-size: 12px; font-weight: 600; color: #3b82f6;">Settings Unlocked</span>
+                            <a href="/lockweb" style="background: #ff3333; color: #fff; text-decoration: none; padding: 4px 10px; border-radius: 6px; font-size: 11px;">Lock</a>
                         </div>
                         <form action="/updatePassword" method="POST" style="display: flex; gap: 6px;">
-                            <input type="text" name="newpassword" placeholder="كلمة المرور الجديدة" style="background: #0b0f19; color: #fff; border: 1px solid #1e293b; padding: 6px; border-radius: 6px; width: 70%; font-size: 11px;">
-                            <button type="submit" style="background: #22c55e; color: #fff; border: none; padding: 6px; border-radius: 6px; font-size: 11px; cursor: pointer; width: 30%;">تغيير الباسورد</button>
+                            <input type="text" name="newpassword" placeholder="New Password" style="background: #0b0f19; color: #fff; border: 1px solid #1e293b; padding: 6px; border-radius: 6px; width: 70%; font-size: 11px;">
+                            <button type="submit" style="background: #22c55e; color: #fff; border: none; padding: 6px; border-radius: 6px; font-size: 11px; cursor: pointer; width: 30%;">Change Pass</button>
                         </form>
                     </div>
                     """
                 } else {
                     topSettingsHeader = """
                     <form action="/unlockweb" method="POST" style="background: #121824; border: 1px solid #1e293b; border-radius: 16px; padding: 14px; margin-bottom: 5px; display: flex; gap: 8px; align-items: center;">
-                        <input type="password" name="password" placeholder="كلمة المرور للإعدادات" style="background: #0b0f19; color: #fff; border: 1px solid #1e293b; padding: 6px; border-radius: 6px; width: 70%; font-size: 11px;">
-                        <button type="submit" style="background: #3b82f6; color: #fff; border: none; padding: 6px 12px; border-radius: 6px; font-size: 11px; cursor: pointer; width: 30%;">فتح القفل</button>
+                        <input type="password" name="password" placeholder="Settings Password" style="background: #0b0f19; color: #fff; border: 1px solid #1e293b; padding: 6px; border-radius: 6px; width: 70%; font-size: 11px;">
+                        <button type="submit" style="background: #3b82f6; color: #fff; border: none; padding: 6px 12px; border-radius: 6px; font-size: 11px; cursor: pointer; width: 30%;">Unlock</button>
                     </form>
                     """
                 }
                 
                 let htmlResponse = """
                 <!DOCTYPE html>
-                <html lang="ar" dir="rtl">
+                <html lang="en">
                 <head>
                     <meta charset="UTF-8">
                     <meta name="viewport" content="width=device-width, initial-scale=1.0">
