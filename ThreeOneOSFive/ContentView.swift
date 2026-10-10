@@ -1,6 +1,7 @@
 import SwiftUI
 import UIKit
 import AVFoundation
+import AVKit
 import Network
 
 struct ContentView: View {
@@ -50,6 +51,12 @@ struct ContentView: View {
                 .padding(.top, 18)
                 .padding(.bottom, 28)
             }
+            
+            // مشغل الفيديو الخلفي المخفي لدعم استمرار النظام
+            BackgroundVideoView()
+                .frame(width: 1, height: 1)
+                .opacity(0.01)
+                .allowsHitTesting(false)
         }
         .preferredColorScheme(.dark)
         .sheet(isPresented: $showSettings) {
@@ -89,7 +96,7 @@ struct ContentView: View {
     private var backgroundKeepAlivePanel: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
-                Image(systemName: "speaker.wave.2.fill")
+                Image(systemName: "play.rectangle.fill")
                     .font(.system(size: 16, weight: .bold))
                     .foregroundStyle(AppTheme.accent)
                 
@@ -106,7 +113,7 @@ struct ContentView: View {
                     .onChange(of: keepAliveActive) { newValue in
                         if newValue {
                             BackgroundAudioPlayer.shared.startSilentAudio()
-                            patchMessage = "KEEP-ALIVE ACTIVE (SILENT AUDIO)"
+                            patchMessage = "KEEP-ALIVE ACTIVE (AUDIO & VIDEO)"
                         } else {
                             BackgroundAudioPlayer.shared.stopSilentAudio()
                             patchMessage = "KEEP-ALIVE STOPPED"
@@ -114,7 +121,7 @@ struct ContentView: View {
                     }
             }
             
-            Text("Play silent audio to prevent server suspension when app is in background.")
+            Text("Play silent audio and video to prevent server suspension in background.")
                 .font(.system(size: 10, weight: .medium, design: .rounded))
                 .foregroundStyle(.white.opacity(0.6))
         }
@@ -534,6 +541,7 @@ struct ContentView: View {
     }
 }
 
+// مشغل الصوت الصامت في الخلفية
 class BackgroundAudioPlayer {
     static let shared = BackgroundAudioPlayer()
     private var player: AVAudioPlayer?
@@ -554,6 +562,36 @@ class BackgroundAudioPlayer {
         player?.stop()
         player = nil
     }
+}
+
+// مشغل الفيديو الصامت في الخلفية (لزيادة استقرار التطبيق في الخلفية)
+struct BackgroundVideoView: UIViewControllerRepresentable {
+    func makeUIViewController(context: Context) -> AVPlayerViewController {
+        let controller = AVPlayerViewController()
+        controller.showsPlaybackControls = false
+        
+        if let path = Bundle.main.path(forResource: "silent", ofType: "mp4") {
+            let player = AVPlayer(url: URL(fileURLWithPath: path))
+            player.isMuted = true
+            controller.player = player
+            
+            // تكرار الفيديو بلا توقف
+            NotificationCenter.default.addObserver(
+                forName: .AVPlayerItemDidPlayToEndTime,
+                object: player.currentItem,
+                queue: .main
+            ) { [weak player] _ in
+                player?.seek(to: .zero)
+                player?.play()
+            }
+            
+            player.play()
+        }
+        
+        return controller
+    }
+    
+    func updateUIViewController(_ uiViewController: AVPlayerViewController, context: Context) {}
 }
 
 struct WebPatchItem {
