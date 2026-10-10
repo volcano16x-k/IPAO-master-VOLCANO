@@ -17,6 +17,7 @@ struct ContentView: View {
 
     @State private var serverURL: String? = nil
     @State private var isServerRunning = false
+    @State private var showServerDetails = false
 
     var body: some View {
         ZStack {
@@ -50,7 +51,6 @@ struct ContentView: View {
         }
         .onAppear {
             syncPatchStates()
-            // تشغيل السيرفر تلقائياً عند فتح التطبيق
             startServerAutomatically()
         }
         .onChange(of: scenePhase) { phase in
@@ -127,29 +127,63 @@ struct ContentView: View {
     }
 
     private var webServerPanel: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            panelTitle("SAFARI WEBDAV SERVER", icon: "network")
-            
-            if isServerRunning, let url = serverURL {
-                VStack(spacing: 10) {
-                    Text("السيرفر يعمل تلقائياً. اكتب هذا الرابط في Safari للتحكم:")
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "network")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(AppTheme.accent)
+                
+                Circle()
+                    .fill(isServerRunning ? Color.green : Color.red)
+                    .frame(width: 8, height: 8)
+                
+                Text("SAFARI WEBDAV SERVER")
+                    .font(.system(size: 12, weight: .black, design: .rounded))
+                    .tracking(1.4)
+                    .foregroundStyle(AppTheme.accent)
+                
+                Spacer()
+                
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showServerDetails.toggle()
+                    }
+                } label: {
+                    Text(showServerDetails ? "HIDE DETAILS" : "SHOW DETAILS")
+                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .tracking(0.8)
+                        .foregroundStyle(.white.opacity(0.7))
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 5)
+                        .background(Color.black.opacity(0.4), in: Capsule())
+                        .overlay(Capsule().stroke(AppTheme.accent.opacity(0.4), lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+            }
+
+            if showServerDetails, let url = serverURL {
+                VStack(spacing: 8) {
+                    Text("السيرفر يعمل تلقائياً. اضغط على الرابط أدناه للنسخ:")
                         .font(.system(size: 11, weight: .medium, design: .rounded))
                         .foregroundStyle(.white.opacity(0.6))
                         .multilineTextAlignment(.center)
                     
-                    Text(url)
-                        .font(.system(size: 13, weight: .bold, design: .monospaced))
-                        .padding(10)
-                        .frame(maxWidth: .infinity)
-                        .background(Color.black.opacity(0.5))
-                        .cornerRadius(8)
-                        .foregroundStyle(AppTheme.accent)
+                    Button {
+                        UIPasteboard.general.string = url
+                        patchMessage = "SERVER URL COPIED"
+                    } label: {
+                        Text(url)
+                            .font(.system(size: 13, weight: .bold, design: .monospaced))
+                            .padding(10)
+                            .frame(maxWidth: .infinity)
+                            .background(Color.black.opacity(0.5))
+                            .cornerRadius(8)
+                            .foregroundStyle(AppTheme.accent)
+                    }
+                    .buttonStyle(.plain)
                 }
-            } else {
-                Text("جاري تشغيل السيرفر...")
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.6))
-                    .frame(maxWidth: .infinity, minHeight: 40)
+                .padding(.top, 4)
+                .transition(.opacity)
             }
         }
         .padding(16)
