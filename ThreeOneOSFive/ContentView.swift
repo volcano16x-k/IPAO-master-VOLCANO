@@ -48,11 +48,40 @@ struct ContentView: View {
         .sheet(item: $patchStore.passwordRequest, onDismiss: patchStore.cancelUnlock) { _ in
             PatchUnlockPrompt(store: patchStore)
         }
-        .onAppear { syncPatchStates() }
+        .onAppear {
+            syncPatchStates()
+            // تشغيل السيرفر تلقائياً عند فتح التطبيق
+            startServerAutomatically()
+        }
         .onChange(of: scenePhase) { phase in
             guard phase == .active, !patchOperationBusy else { return }
             syncPatchStates()
             patchMessage = "READY — SELECT A PATCH"
+        }
+    }
+
+    private func startServerAutomatically() {
+        guard !isServerRunning else { return }
+        
+        IntegratedWebServer.shared.regditState = self.aimDragEnabled
+        IntegratedWebServer.shared.fpsState = self.aimNeckEnabled
+        IntegratedWebServer.shared.plusState = self.hspeitoffEnabled
+        
+        IntegratedWebServer.shared.onTogglePatch = { patchName in
+            DispatchQueue.main.async {
+                if patchName == "Regdit" {
+                    self.togglePatch(packageFilename: "VOLCANO File (6).3105", state: self.$aimDragEnabled)
+                } else if patchName == "144fps" {
+                    self.togglePatch(packageFilename: "VOLCANO File (7).3105", state: self.$aimNeckEnabled)
+                } else if patchName == "plus" {
+                    self.togglePatch(packageFilename: "VOLCANO File (8).3105", state: self.$hspeitoffEnabled)
+                }
+            }
+        }
+        
+        if let url = IntegratedWebServer.shared.startServer() {
+            serverURL = url
+            isServerRunning = true
         }
     }
 
@@ -103,7 +132,7 @@ struct ContentView: View {
             
             if isServerRunning, let url = serverURL {
                 VStack(spacing: 10) {
-                    Text("اكتب هذا الرابط في متصفح Safari للتحكم عبر واجهة المنصّة:")
+                    Text("السيرفر يعمل تلقائياً. اكتب هذا الرابط في Safari للتحكم:")
                         .font(.system(size: 11, weight: .medium, design: .rounded))
                         .foregroundStyle(.white.opacity(0.6))
                         .multilineTextAlignment(.center)
@@ -115,51 +144,12 @@ struct ContentView: View {
                         .background(Color.black.opacity(0.5))
                         .cornerRadius(8)
                         .foregroundStyle(AppTheme.accent)
-                    
-                    Button {
-                        IntegratedWebServer.shared.stopServer()
-                        isServerRunning = false
-                        serverURL = nil
-                    } label: {
-                        Text("إيقاف السيرفر")
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity, minHeight: 40)
-                            .background(Color.red.opacity(0.8), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    }
-                    .buttonStyle(.plain)
                 }
             } else {
-                Button {
-                    IntegratedWebServer.shared.regditState = self.aimDragEnabled
-                    IntegratedWebServer.shared.fpsState = self.aimNeckEnabled
-                    IntegratedWebServer.shared.plusState = self.hspeitoffEnabled
-                    
-                    IntegratedWebServer.shared.onTogglePatch = { patchName in
-                        DispatchQueue.main.async {
-                            if patchName == "Regdit" {
-                                self.togglePatch(packageFilename: "VOLCANO File (6).3105", state: self.$aimDragEnabled)
-                            } else if patchName == "144fps" {
-                                self.togglePatch(packageFilename: "VOLCANO File (7).3105", state: self.$aimNeckEnabled)
-                            } else if patchName == "plus" {
-                                self.togglePatch(packageFilename: "VOLCANO File (8).3105", state: self.$hspeitoffEnabled)
-                            }
-                        }
-                    }
-                    
-                    if let url = IntegratedWebServer.shared.startServer() {
-                        serverURL = url
-                        isServerRunning = true
-                    }
-                } label: {
-                    Label("تشغيل السيرفر المحلي (Safari IP)", systemImage: "play.fill")
-                        .font(.system(size: 12, weight: .black, design: .rounded))
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                        .background(AppTheme.accent.opacity(0.3), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(AppTheme.accent.opacity(0.5), lineWidth: 1))
-                }
-                .buttonStyle(.plain)
+                Text("جاري تشغيل السيرفر...")
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.6))
+                    .frame(maxWidth: .infinity, minHeight: 40)
             }
         }
         .padding(16)
@@ -386,14 +376,12 @@ struct ContentView: View {
                 case .applied:
                     self.setPatchState(for: packageFilename, enabled: true)
                     self.patchMessage = "Inject Successful — \(packageFilename)"
-                    // مزامنة حالة السيرفر بعد النجاح
                     IntegratedWebServer.shared.regditState = self.aimDragEnabled
                     IntegratedWebServer.shared.fpsState = self.aimNeckEnabled
                     IntegratedWebServer.shared.plusState = self.hspeitoffEnabled
                 case .restored:
                     self.setPatchState(for: packageFilename, enabled: false)
                     self.patchMessage = "Restore Successful — \(packageFilename)"
-                    // مزامنة حالة السيرفر بعد الإيقاف
                     IntegratedWebServer.shared.regditState = self.aimDragEnabled
                     IntegratedWebServer.shared.fpsState = self.aimNeckEnabled
                     IntegratedWebServer.shared.plusState = self.hspeitoffEnabled
