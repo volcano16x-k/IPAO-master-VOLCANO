@@ -40,7 +40,7 @@ struct ContentView: View {
                     brandHeader
                     devicePanel
                     webServerPanel
-                    backgroundKeepAlivePanel // زر التحكم الجديد بالصوت الصامت
+                    backgroundKeepAlivePanel
                     patchOptions
                     gameLaunchPanel
                     footerStatus
@@ -86,7 +86,6 @@ struct ContentView: View {
         }
     }
 
-    // لوحة تحكم لتشغيل أو إيقاف الصوت الصامت للخلفية
     private var backgroundKeepAlivePanel: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
