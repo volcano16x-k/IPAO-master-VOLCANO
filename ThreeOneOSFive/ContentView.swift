@@ -73,13 +73,11 @@ struct ContentView: View {
     private func startServerAutomatically() {
         guard !isServerRunning else { return }
         
-        // ربط مزودات البيانات الديناميكية للخادم
         IntegratedWebServer.shared.itemsProvider = {
             return [
                 WebPatchItem(id: "Regdit", title: "⚡ REGDIT", isEnabled: self.aimDragEnabled, isVisible: self.showRegditButton, filename: self.regditFile),
                 WebPatchItem(id: "144fps", title: "⚡ 144 FPS", isEnabled: self.aimNeckEnabled, isVisible: self.showFpsButton, filename: self.fpsFile),
                 WebPatchItem(id: "plus", title: "⚡ EXTRA PATCH (+)", isEnabled: self.hspeitoffEnabled, isVisible: self.showPlusButton, filename: self.plusFile)
-                // يمكنك إضافة أي خيار جديد هنا مستقبلاً وسيتعامل معه الخادم تلقائياً!
             ]
         }
         
@@ -482,7 +480,6 @@ struct ContentView: View {
     }
 }
 
-// نموذج ديناميكي عام لأي خيار أو زر يتم إضافته
 struct WebPatchItem {
     let id: String
     let title: String
@@ -593,50 +590,47 @@ private class IntegratedWebServer {
                 var activeCardsHTML = ""
                 let items = self.itemsProvider?() ?? []
                 
-                // توليد الكروت ديناميكياً لأي عدد من الخيارات بغض النظر عن هويتها
                 for item in items {
-                    if item.isVisible {
-                        let isChecked = item.isEnabled ? "checked" : ""
-                        let isVisChecked = item.isVisible ? "checked" : ""
-                        var adminSection = ""
-                        
-                        if self.isWebUnlocked {
-                            adminSection = """
-                            <span class="desc" style="margin-top: 6px;">File: \(item.filename)</span>
-                            <form action="/updateFile" method="POST" style="margin-top: 5px; display: flex; gap: 5px;">
-                                <input type="hidden" name="patch" value="\(item.id)">
-                                <input type="text" name="filename" value="\(item.filename)" style="background: #0b0f19; color: #fff; border: 1px solid #1e293b; padding: 4px; border-radius: 6px; width: 75%; font-size: 11px;">
-                                <button type="submit" style="background: #ff3333; color: #fff; border: none; padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer;">Update</button>
-                            </form>
-                            <div style="margin-top: 6px; display: flex; align-items: center; justify-content: space-between;">
-                                <span class="desc">Show/Hide Button:</span>
-                                <label class="switch">
-                                    <input type="checkbox" \(isVisChecked) onchange="location.href='/visibility?patch=\(item.id)'">
-                                    <span class="slider" style="background-color: #3b82f6;"></span>
-                                </label>
-                            </div>
-                            """
-                        }
-                        
-                        activeCardsHTML += """
-                        <div class="card">
-                            <div class="card-top">
-                                <div>
-                                    <span class="title">\(item.title)</span>
-                                </div>
-                                <label class="switch" title="Toggle Patch">
-                                    <input type="checkbox" \(isChecked) onchange="location.href='/toggle?patch=\(item.id)'">
-                                    <span class="slider"></span>
-                                </label>
-                            </div>
-                            \(adminSection)
+                    let isChecked = item.isEnabled ? "checked" : ""
+                    let isVisChecked = item.isVisible ? "checked" : ""
+                    var adminSection = ""
+                    
+                    if self.isWebUnlocked {
+                        adminSection = """
+                        <span class="desc" style="margin-top: 6px;">File: \(item.filename)</span>
+                        <form action="/updateFile" method="POST" style="margin-top: 5px; display: flex; gap: 5px;">
+                            <input type="hidden" name="patch" value="\(item.id)">
+                            <input type="text" name="filename" value="\(item.filename)" style="background: #0b0f19; color: #fff; border: 1px solid #1e293b; padding: 4px; border-radius: 6px; width: 75%; font-size: 11px;">
+                            <button type="submit" style="background: #ff3333; color: #fff; border: none; padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer;">Update</button>
+                        </form>
+                        <div style="margin-top: 6px; display: flex; align-items: center; justify-content: space-between;">
+                            <span class="desc">Show in App:</span>
+                            <label class="switch">
+                                <input type="checkbox" \(isVisChecked) onchange="location.href='/visibility?patch=\(item.id)'">
+                                <span class="slider" style="background-color: #3b82f6;"></span>
+                            </label>
                         </div>
                         """
                     }
+                    
+                    activeCardsHTML += """
+                    <div class="card">
+                        <div class="card-top">
+                            <div>
+                                <span class="title">\(item.title)</span>
+                            </div>
+                            <label class="switch" title="Toggle Patch">
+                                <input type="checkbox" \(isChecked) onchange="location.href='/toggle?patch=\(item.id)'">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        \(adminSection)
+                    </div>
+                    """
                 }
                 
                 if activeCardsHTML.isEmpty {
-                    activeCardsHTML = "<div class=\"card\"><span class=\"desc\" style=\"text-align:center;\">No visible buttons available. Unlock settings to manage visibility.</span></div>"
+                    activeCardsHTML = "<div class=\"card\"><span class=\"desc\" style=\"text-align:center;\">No items available. Unlock settings to manage visibility.</span></div>"
                 }
                 
                 var topSettingsHeader = ""
@@ -785,13 +779,13 @@ private struct PatchOptionCard: View {
 private struct PatchUnlockPrompt: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var store: PatchProjectStore
-    @State private name = ""
+    @State private var password = ""
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
-                    SecureField("Package password", text: $name)
+                    SecureField("Package password", text: $password)
                         .textContentType(.password)
                 }
             }
