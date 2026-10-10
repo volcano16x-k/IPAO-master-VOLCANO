@@ -131,6 +131,11 @@ struct ContentView: View {
                 }
             } else {
                 Button {
+                    // تمرير حالات الأزرار الحالية للسيرفر لكي تظهر في الـ HTML
+                    IntegratedWebServer.shared.regditState = self.aimDragEnabled
+                    IntegratedWebServer.shared.fpsState = self.aimNeckEnabled
+                    IntegratedWebServer.shared.plusState = self.hspeitoffEnabled
+                    
                     IntegratedWebServer.shared.onTogglePatch = { patchName in
                         DispatchQueue.main.async {
                             if patchName == "Regdit" {
@@ -399,11 +404,15 @@ struct ContentView: View {
     }
 }
 
-// السيرفر المحلي المدمج الذي يعرض تصميم الـ HTML المخصص ويستقبل أوامر الأزرار
+// السيرفر المدمج الذي يعرض الحالة الحقيقية (ON / OFF) للأزرار في المتصفح
 private class IntegratedWebServer {
     static let shared = IntegratedWebServer()
     private var listener: NWListener?
     var onTogglePatch: ((String) -> Void)?
+    
+    var regditState = false
+    var fpsState = false
+    var plusState = false
     
     func startServer() -> String? {
         let port: UInt16 = 8080
@@ -428,16 +437,25 @@ private class IntegratedWebServer {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { data, _, _, _ in
             if let data = data, let requestString = String(data: data, encoding: .utf8) {
                 
-                // استقبال الطلبات القادمة من المتصفح لتفعيل الأزرار
                 if requestString.contains("GET /toggle?patch=Regdit") {
                     self.onTogglePatch?("Regdit")
+                    self.regditState.toggle()
                 } else if requestString.contains("GET /toggle?patch=144fps") {
                     self.onTogglePatch?("144fps")
+                    self.fpsState.toggle()
                 } else if requestString.contains("GET /toggle?patch=plus") {
                     self.onTogglePatch?("plus")
+                    self.plusState.toggle()
                 }
                 
-                // صفحة الويب بنفس التصميم الاحترافي المطابق تماماً لطلبك
+                let regditClass = self.regditState ? "menu-option active" : "menu-option"
+                let fpsClass = self.fpsState ? "menu-option active" : "menu-option"
+                let plusClass = self.plusState ? "menu-option active" : "menu-option"
+                
+                let regditText = self.regditState ? "ON" : "OFF"
+                let fpsText = self.fpsState ? "ON" : "OFF"
+                let plusText = self.plusState ? "ON" : "OFF"
+                
                 let htmlResponse = """
                 <!DOCTYPE html>
                 <html lang="ar" dir="rtl">
@@ -450,7 +468,7 @@ private class IntegratedWebServer {
                     <style>
                         * { margin: 0; padding: 0; box-sizing: border-box; }
                         body { background-color: #000000; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: 'Poppins', sans-serif; overflow: hidden; user-select: none; }
-                        .menu-container { width: 360px; height: 400px; background: rgba(0, 0, 0, 0.90); border-radius: 15px; overflow: hidden; display: flex; position: absolute; box-shadow: 0 10px 25px rgba(0, 255, 255, 0.5); border: 1px solid rgba(0, 255, 255, 0.3); backdrop-filter: blur(10px); }
+                        .menu-container { width: 360px; height: 420px; background: rgba(0, 0, 0, 0.90); border-radius: 15px; overflow: hidden; display: flex; position: absolute; box-shadow: 0 10px 25px rgba(0, 255, 255, 0.5); border: 1px solid rgba(0, 255, 255, 0.3); backdrop-filter: blur(10px); }
                         .sidebar { width: 70px; background: rgba(0, 0, 0, 0.3); display: flex; flex-direction: column; align-items: center; padding: 15px 0; border-right: 1px solid rgba(0, 255, 255, 0.2); }
                         .sidebar-item { width: 55px; height: 55px; margin: 10px 0; display: flex; justify-content: center; align-items: center; background: rgba(0, 255, 255, 0.1); border-radius: 12px; cursor: pointer; transition: all 0.3s ease; }
                         .sidebar-item.active { background: rgba(0, 255, 255, 0.5); box-shadow: 0 0 15px rgba(0, 255, 255, 0.5); }
@@ -461,7 +479,10 @@ private class IntegratedWebServer {
                         .menu-content.hidden { display: none; }
                         .menu-option { display: flex; justify-content: space-between; align-items: center; background: rgba(0, 255, 255, 0.05); padding: 12px 15px; border-radius: 8px; border: 1px solid rgba(0, 255, 255, 0.1); text-decoration: none; cursor: pointer; transition: all 0.3s ease; }
                         .menu-option:hover { background: rgba(0, 255, 255, 0.15); }
+                        .menu-option.active { background: rgba(0, 255, 255, 0.4); border: 1px solid #00ffff; box-shadow: 0 0 10px rgba(0, 255, 255, 0.5); }
                         .menu-option span { color: #ffffff; font-size: 14px; font-weight: 500; }
+                        .status-badge { font-size: 12px; font-weight: bold; padding: 2px 8px; border-radius: 4px; background: rgba(0,0,0,0.5); color: #fff; }
+                        .menu-option.active .status-badge { background: #10b981; color: #fff; }
                         .logo-img { width: 45px; height: 45px; border-radius: 10px; object-fit: cover; border: 2px solid rgba(0, 255, 255, 0.5); margin-bottom: 10px; }
                     </style>
                 </head>
@@ -478,14 +499,17 @@ private class IntegratedWebServer {
                                 <span>Panel Volcano Sensi</span>
                             </header>
                             <div class="menu-content" id="options-1">
-                                <a href="/toggle?patch=Regdit" class="menu-option">
-                                    <span>Regdit (Aim & Drag)</span>
+                                <a href="/toggle?patch=Regdit" class="\\(regditClass)">
+                                    <span>Regdit</span>
+                                    <span class="status-badge">\\(regditText)</span>
                                 </a>
-                                <a href="/toggle?patch=144fps" class="menu-option">
-                                    <span>144fps Unlocker</span>
+                                <a href="/toggle?patch=144fps" class="\\(fpsClass)">
+                                    <span>144fps</span>
+                                    <span class="status-badge">\\(fpsText)</span>
                                 </a>
-                                <a href="/toggle?patch=plus" class="menu-option">
-                                    <span>Extra Patch (+)</span>
+                                <a href="/toggle?patch=plus" class="\\(plusClass)">
+                                    <span>Extra (+)</span>
+                                    <span class="status-badge">\\(plusText)</span>
                                 </a>
                             </div>
                         </div>
@@ -590,13 +614,13 @@ private struct PatchOptionCard: View {
 private struct PatchUnlockPrompt: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var store: PatchProjectStore
-    @State private var password = ""
+    @State private name: String = ""
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
-                    SecureField("Package password", text: $password)
+                    SecureField("Package password", text: $name)
                         .textContentType(.password)
                 }
             }
