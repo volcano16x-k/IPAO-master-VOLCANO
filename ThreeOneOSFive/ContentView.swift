@@ -40,7 +40,7 @@ struct ContentView: View {
                     brandHeader
                     devicePanel
                     webServerPanel
-                    youtubeKeepAlivePanel // مربع يوتيوب الجديد للحفاظ على استقرار الخلفية
+                    youtubeKeepAlivePanel
                     patchOptions
                     gameLaunchPanel
                     footerStatus
@@ -83,7 +83,6 @@ struct ContentView: View {
         }
     }
 
-    // مربع مشغل يوتيوب الخلفي لضمان عمل السيرفر واستمراره
     private var youtubeKeepAlivePanel: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
@@ -107,7 +106,6 @@ struct ContentView: View {
                 .font(.system(size: 10, weight: .medium, design: .rounded))
                 .foregroundStyle(.white.opacity(0.6))
             
-            // مشغل فيديو يوتيوب المدمج
             YouTubeWebView(videoID: "xFThqlSC1GE")
                 .frame(height: 150)
                 .cornerRadius(14)
@@ -529,7 +527,6 @@ struct ContentView: View {
     }
 }
 
-// عارض فيديو يوتيوب داخل التطبيق عبر WebView
 struct YouTubeWebView: UIViewRepresentable {
     let videoID: String
 
@@ -549,7 +546,7 @@ struct YouTubeWebView: UIViewRepresentable {
         </style>
         </head>
         <body>
-        <iframe src="https://www.youtube.com/embed/\(videoID)?autoplay=1&loop=1&playlist=\(videoID)&mute=0" allow="autoplay"></iframe>
+        <iframe src="https://www.youtube-nocookie.com/embed/\(videoID)?autoplay=1&loop=1&playlist=\(videoID)&mute=0&controls=0" allow="autoplay"></iframe>
         </body>
         </html>
         """
