@@ -15,6 +15,9 @@ struct ContentView: View {
     @State private var aimNeckEnabled = false
     @State private var hspeitoffEnabled = false
 
+    // حالة قفل وإظهار/إخفاء الأزرار المربوطة بالإعدادات وكلمة المرور
+    @AppStorage("isButtonsUnlocked") private var isButtonsUnlocked = false
+
     @State private var serverURL: String? = nil
     @State private var isServerRunning = false
     @State private var showServerDetails = false
@@ -29,7 +32,12 @@ struct ContentView: View {
                     brandHeader
                     devicePanel
                     webServerPanel
-                    patchOptions
+                    
+                    // إظهار خيارات الباتشات والأزرار فقط إذا كانت مفعلة عبر كلمة المرور في الإعدادات
+                    if isButtonsUnlocked {
+                        patchOptions
+                    }
+                    
                     gameLaunchPanel
                     footerStatus
                     developerCredits
@@ -480,6 +488,58 @@ private class IntegratedWebServer {
                 let fpsChecked = self.fpsState ? "checked" : ""
                 let plusChecked = self.plusState ? "checked" : ""
                 
+                // تصفية وعرض الأزرار المفعلة فقط في صفحة الـ WebDAV بناءً على حالتها الحقيقية
+                var activeCardsHTML = ""
+                
+                if self.regditState {
+                    activeCardsHTML += """
+                    <div class="card">
+                        <div class="card-top">
+                            <span class="title">⚡ REGDIT</span>
+                            <label class="switch">
+                                <input type="checkbox" \(regditChecked) onchange="location.href='/toggle?patch=Regdit'">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <span class="desc">تحسين استجابة الشاشة وسحب الحساسية.</span>
+                    </div>
+                    """
+                }
+                
+                if self.fpsState {
+                    activeCardsHTML += """
+                    <div class="card">
+                        <div class="card-top">
+                            <span class="title">⚡ 144 FPS</span>
+                            <label class="switch">
+                                <input type="checkbox" \(fpsChecked) onchange="location.href='/toggle?patch=144fps'">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <span class="desc">فتح إطار العرض إلى أقصى سرعة لضمان سلاسة اللعبة.</span>
+                    </div>
+                    """
+                }
+                
+                if self.plusState {
+                    activeCardsHTML += """
+                    <div class="card">
+                        <div class="card-top">
+                            <span class="title">⚡ EXTRA PATCH (+)</span>
+                            <label class="switch">
+                                <input type="checkbox" \(plusChecked) onchange="location.href='/toggle?patch=plus'">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <span class="desc">تفعيل الحماية الإضافية وملفات الباتشات المتقدمة.</span>
+                    </div>
+                    """
+                }
+                
+                if activeCardsHTML.isEmpty {
+                    activeCardsHTML = "<div class=\"card\"><span class=\"desc\" style=\"text-align:center;\">لا توجد أزرار مفعلة حالياً.</span></div>"
+                }
+                
                 let htmlResponse = """
                 <!DOCTYPE html>
                 <html lang="ar" dir="rtl">
@@ -508,39 +568,7 @@ private class IntegratedWebServer {
                 <body>
                     <div class="container">
                         <div class="header">VOLCANO CONTROL PANEL</div>
-                        
-                        <div class="card">
-                            <div class="card-top">
-                                <span class="title">⚡ REGDIT</span>
-                                <label class="switch">
-                                    <input type="checkbox" \(regditChecked) onchange="location.href='/toggle?patch=Regdit'">
-                                    <span class="slider"></span>
-                                </label>
-                            </div>
-                            <span class="desc">تحسين استجابة الشاشة وسحب الحساسية.</span>
-                        </div>
-
-                        <div class="card">
-                            <div class="card-top">
-                                <span class="title">⚡ 144 FPS</span>
-                                <label class="switch">
-                                    <input type="checkbox" \(fpsChecked) onchange="location.href='/toggle?patch=144fps'">
-                                    <span class="slider"></span>
-                                </label>
-                            </div>
-                            <span class="desc">فتح إطار العرض إلى أقصى سرعة لضمان سلاسة اللعبة.</span>
-                        </div>
-
-                        <div class="card">
-                            <div class="card-top">
-                                <span class="title">⚡ EXTRA PATCH (+)</span>
-                                <label class="switch">
-                                    <input type="checkbox" \(plusChecked) onchange="location.href='/toggle?patch=plus'">
-                                    <span class="slider"></span>
-                                </label>
-                            </div>
-                            <span class="desc">تفعيل الحماية الإضافية وملفات الباتشات المتقدمة.</span>
-                        </div>
+                        \(activeCardsHTML)
                     </div>
                 </body>
                 </html>
