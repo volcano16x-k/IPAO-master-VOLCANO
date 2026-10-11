@@ -501,7 +501,7 @@ struct ContentView: View {
     }
 
     private func isPatchActive(_ packageFilename: String) -> Bool {
-        patchStore.items.first(where: { $0.packageURL.lastPathComponent.caseInsensitiveCompare(packageFilename) == .orderedSame })
+        patchStore.items.first(where: { $0.packageURL.lastPathComponent.caseInsensitiveCompare(packageFilename) == .orderedSame || $0.packageURL.lastPathComponent.contains("(15)") && packageFilename.contains("(15)") })
             .flatMap { DevicePatchService.latestReceipt(projectID: $0.id) } != nil
     }
 
@@ -521,12 +521,12 @@ struct ContentView: View {
         else if packageFilename.caseInsensitiveCompare(panelFile) == .orderedSame { panelEnabled = enabled }
         else if packageFilename.caseInsensitiveCompare(aimHeadAntenaFile) == .orderedSame { aimHeadAntenaEnabled = enabled }
         else if packageFilename.caseInsensitiveCompare(obbFile) == .orderedSame { obbEnabled = enabled }
-        else if packageFilename.caseInsensitiveCompare(hsPescocoFile) == .orderedSame { hsPescocoEnabled = enabled }
+        else if packageFilename.caseInsensitiveCompare(hsPescocoFile) == .orderedSame || packageFilename.contains("(15)") { hsPescocoEnabled = enabled }
     }
 
     private func togglePatch(packageFilename: String, state: Binding<Bool>) {
         guard !patchOperationBusy else { return }
-        guard let item = patchStore.items.first(where: { $0.packageURL.lastPathComponent.caseInsensitiveCompare(packageFilename) == .orderedSame }) else {
+        guard let item = patchStore.items.first(where: { $0.packageURL.lastPathComponent.caseInsensitiveCompare(packageFilename) == .orderedSame || ($0.packageURL.lastPathComponent.contains("(15)") && packageFilename.contains("(15)")) }) else {
             patchMessage = "ERROR — PACKAGE NOT FOUND"
             return
         }
