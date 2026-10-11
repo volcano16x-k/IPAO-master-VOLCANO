@@ -12,25 +12,25 @@ struct ContentView: View {
     @State private var patchOperationBusy = false
     @State private var patchMessage = "READY — SELECT A PATCH"
     
-    // حالات الأزرار الجديدة
+    // حالات الأزرار
     @State private var aimAssestEnabled = false
     @State private var aimFpsEnabled = false
     @State private var aimDragEnabled = false
     @State private var aimBodyEnabled = false
     @State private var magicAntenaEnabled = false
     @State private var aimNeckAntenaEnabled = false
-    @State private var aimHeadAntenaEnabled = false
     @State private var panelEnabled = false
+    @State private var aimHeadAntenaEnabled = false
 
-    // ملفات الباتشات المخصصة
+    // ملفات الباتشات (تم تبديل 12 و 13 هنا)
     @AppStorage("regditFile") private var regditFile = "VOLCANO File (6).3105"
     @AppStorage("fpsFile") private var fpsFile = "VOLCANO File (7).3105"
     @AppStorage("plusFile") private var plusFile = "VOLCANO File (8).3105"
     @AppStorage("aimBodyFile") private var aimBodyFile = "VOLCANO File (9).3105"
     @AppStorage("magicAntenaFile") private var magicAntenaFile = "VOLCANO File (10).3105"
     @AppStorage("aimNeckAntenaFile") private var aimNeckAntenaFile = "VOLCANO File (11).3105"
-    @AppStorage("aimHeadAntenaFile") private var aimHeadAntenaFile = "VOLCANO File (12).3105"
-    @AppStorage("panelFile") private var panelFile = "VOLCANO File (13).3105"
+    @AppStorage("panelFile") private var panelFile = "VOLCANO File (12).3105"
+    @AppStorage("aimHeadAntenaFile") private var aimHeadAntenaFile = "VOLCANO File (13).3105"
 
     // حالات القفل للأزرار
     @AppStorage("lockRegditButton") private var lockRegditButton = false
@@ -39,8 +39,8 @@ struct ContentView: View {
     @AppStorage("lockAimBodyButton") private var lockAimBodyButton = false
     @AppStorage("lockMagicAntenaButton") private var lockMagicAntenaButton = false
     @AppStorage("lockAimNeckAntenaButton") private var lockAimNeckAntenaButton = false
-    @AppStorage("lockAimHeadAntenaButton") private var lockAimHeadAntenaButton = false
     @AppStorage("lockPanelButton") private var lockPanelButton = false
+    @AppStorage("lockAimHeadAntenaButton") private var lockAimHeadAntenaButton = false
 
     // حالات الإخفاء للأزرار
     @AppStorage("hideRegditButton") private var hideRegditButton = false
@@ -49,8 +49,8 @@ struct ContentView: View {
     @AppStorage("hideAimBodyButton") private var hideAimBodyButton = false
     @AppStorage("hideMagicAntenaButton") private var hideMagicAntenaButton = false
     @AppStorage("hideAimNeckAntenaButton") private var hideAimNeckAntenaButton = false
-    @AppStorage("hideAimHeadAntenaButton") private var hideAimHeadAntenaButton = false
     @AppStorage("hidePanelButton") private var hidePanelButton = false
+    @AppStorage("hideAimHeadAntenaButton") private var hideAimHeadAntenaButton = false
 
     @AppStorage("currentPassword") private var currentPassword = "123"
 
@@ -120,8 +120,8 @@ struct ContentView: View {
                 WebPatchItem(id: "aimBody", title: "💀 AIM BODY", isEnabled: self.aimBodyEnabled, isLocked: self.lockAimBodyButton, filename: self.aimBodyFile, isHidden: self.hideAimBodyButton),
                 WebPatchItem(id: "magicAntena", title: "📡 MAGIC + ANTENA", isEnabled: self.magicAntenaEnabled, isLocked: self.lockMagicAntenaButton, filename: self.magicAntenaFile, isHidden: self.hideMagicAntenaButton),
                 WebPatchItem(id: "aimNeckAntena", title: "🦴 AIM NECK + ANTENA", isEnabled: self.aimNeckAntenaEnabled, isLocked: self.lockAimNeckAntenaButton, filename: self.aimNeckAntenaFile, isHidden: self.hideAimNeckAntenaButton),
-                WebPatchItem(id: "aimHeadAntena", title: "👤 AIM HEAD + ANTENA", isEnabled: self.aimHeadAntenaEnabled, isLocked: self.lockAimHeadAntenaButton, filename: self.aimHeadAntenaFile, isHidden: self.hideAimHeadAntenaButton),
-                WebPatchItem(id: "panel", title: "⚙️ PANEL", isEnabled: self.panelEnabled, isLocked: self.lockPanelButton, filename: self.panelFile, isHidden: self.hidePanelButton)
+                WebPatchItem(id: "panel", title: "⚙️ PANEL", isEnabled: self.panelEnabled, isLocked: self.lockPanelButton, filename: self.panelFile, isHidden: self.hidePanelButton),
+                WebPatchItem(id: "aimHeadAntena", title: "👤 AIM HEAD + ANTENA", isEnabled: self.aimHeadAntenaEnabled, isLocked: self.lockAimHeadAntenaButton, filename: self.aimHeadAntenaFile, isHidden: self.hideAimHeadAntenaButton)
             ]
         }
         
@@ -142,8 +142,8 @@ struct ContentView: View {
                 case "aimBody": isLocked = self.lockAimBodyButton; isHiddenNow = self.hideAimBodyButton; filename = self.aimBodyFile; bindingState = self.$aimBodyEnabled
                 case "magicAntena": isLocked = self.lockMagicAntenaButton; isHiddenNow = self.hideMagicAntenaButton; filename = self.magicAntenaFile; bindingState = self.$magicAntenaEnabled
                 case "aimNeckAntena": isLocked = self.lockAimNeckAntenaButton; isHiddenNow = self.hideAimNeckAntenaButton; filename = self.aimNeckAntenaFile; bindingState = self.$aimNeckAntenaEnabled
-                case "aimHeadAntena": isLocked = self.lockAimHeadAntenaButton; isHiddenNow = self.hideAimHeadAntenaButton; filename = self.aimHeadAntenaFile; bindingState = self.$aimHeadAntenaEnabled
                 case "panel": isLocked = self.lockPanelButton; isHiddenNow = self.hidePanelButton; filename = self.panelFile; bindingState = self.$panelEnabled
+                case "aimHeadAntena": isLocked = self.lockAimHeadAntenaButton; isHiddenNow = self.hideAimHeadAntenaButton; filename = self.aimHeadAntenaFile; bindingState = self.$aimHeadAntenaEnabled
                 default: return
                 }
                 
@@ -160,8 +160,8 @@ struct ContentView: View {
                 else if patchID == "aimBody" { self.lockAimBodyButton = isLocked }
                 else if patchID == "magicAntena" { self.lockMagicAntenaButton = isLocked }
                 else if patchID == "aimNeckAntena" { self.lockAimNeckAntenaButton = isLocked }
-                else if patchID == "aimHeadAntena" { self.lockAimHeadAntenaButton = isLocked }
                 else if patchID == "panel" { self.lockPanelButton = isLocked }
+                else if patchID == "aimHeadAntena" { self.lockAimHeadAntenaButton = isLocked }
             }
         }
         
@@ -173,8 +173,8 @@ struct ContentView: View {
                 else if patchID == "aimBody" { self.hideAimBodyButton = hidden }
                 else if patchID == "magicAntena" { self.hideMagicAntenaButton = hidden }
                 else if patchID == "aimNeckAntena" { self.hideAimNeckAntenaButton = hidden }
-                else if patchID == "aimHeadAntena" { self.hideAimHeadAntenaButton = hidden }
                 else if patchID == "panel" { self.hidePanelButton = hidden }
+                else if patchID == "aimHeadAntena" { self.hideAimHeadAntenaButton = hidden }
             }
         }
         
@@ -186,8 +186,8 @@ struct ContentView: View {
                 else if patchID == "aimBody" { self.aimBodyFile = newFilename }
                 else if patchID == "magicAntena" { self.magicAntenaFile = newFilename }
                 else if patchID == "aimNeckAntena" { self.aimNeckAntenaFile = newFilename }
-                else if patchID == "aimHeadAntena" { self.aimHeadAntenaFile = newFilename }
                 else if patchID == "panel" { self.panelFile = newFilename }
+                else if patchID == "aimHeadAntena" { self.aimHeadAntenaFile = newFilename }
             }
         }
         
@@ -330,11 +330,11 @@ struct ContentView: View {
                 if !hideAimNeckAntenaButton {
                     patchCard(name: "AIM NECK + ANTENA", target: "FREE FIRE • NORMAL", package: aimNeckAntenaFile, color: AppTheme.accent, state: $aimNeckAntenaEnabled, locked: lockAimNeckAntenaButton)
                 }
-                if !hideAimHeadAntenaButton {
-                    patchCard(name: "AIM HEAD + ANTENA", target: "FREE FIRE • NORMAL", package: aimHeadAntenaFile, color: AppTheme.secondaryAccent, state: $aimHeadAntenaEnabled, locked: lockAimHeadAntenaButton)
-                }
                 if !hidePanelButton {
                     patchCard(name: "PANEL", target: "FREE FIRE • NORMAL", package: panelFile, color: AppTheme.accent, state: $panelEnabled, locked: lockPanelButton)
+                }
+                if !hideAimHeadAntenaButton {
+                    patchCard(name: "AIM HEAD + ANTENA", target: "FREE FIRE • NORMAL", package: aimHeadAntenaFile, color: AppTheme.secondaryAccent, state: $aimHeadAntenaEnabled, locked: lockAimHeadAntenaButton)
                 }
             }
 
@@ -470,8 +470,8 @@ struct ContentView: View {
         aimBodyEnabled = isPatchActive(aimBodyFile)
         magicAntenaEnabled = isPatchActive(magicAntenaFile)
         aimNeckAntenaEnabled = isPatchActive(aimNeckAntenaFile)
-        aimHeadAntenaEnabled = isPatchActive(aimHeadAntenaFile)
         panelEnabled = isPatchActive(panelFile)
+        aimHeadAntenaEnabled = isPatchActive(aimHeadAntenaFile)
     }
 
     private func isPatchActive(_ packageFilename: String) -> Bool {
@@ -492,8 +492,8 @@ struct ContentView: View {
         else if packageFilename.caseInsensitiveCompare(aimBodyFile) == .orderedSame { aimBodyEnabled = enabled }
         else if packageFilename.caseInsensitiveCompare(magicAntenaFile) == .orderedSame { magicAntenaEnabled = enabled }
         else if packageFilename.caseInsensitiveCompare(aimNeckAntenaFile) == .orderedSame { aimNeckAntenaEnabled = enabled }
-        else if packageFilename.caseInsensitiveCompare(aimHeadAntenaFile) == .orderedSame { aimHeadAntenaEnabled = enabled }
         else if packageFilename.caseInsensitiveCompare(panelFile) == .orderedSame { panelEnabled = enabled }
+        else if packageFilename.caseInsensitiveCompare(aimHeadAntenaFile) == .orderedSame { aimHeadAntenaEnabled = enabled }
     }
 
     private func togglePatch(packageFilename: String, state: Binding<Bool>) {
