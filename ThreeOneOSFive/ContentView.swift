@@ -21,8 +21,7 @@ struct ContentView: View {
     @State private var aimNeckAntenaEnabled = false
     @State private var panelEnabled = false
     @State private var aimHeadAntenaEnabled = false
-    @State private var obbEnabled = false
-    @State private var hsPescocoEnabled = false
+    @State private var hsPescocoEnabled = false // تم استخدام هذا المتغير لـ HS PESCOÇO بدلاً من OBB
 
     // ملفات الباتشات
     @AppStorage("regditFile") private var regditFile = "VOLCANO File (6).3105"
@@ -33,8 +32,7 @@ struct ContentView: View {
     @AppStorage("aimNeckAntenaFile") private var aimNeckAntenaFile = "VOLCANO File (11).3105"
     @AppStorage("panelFile") private var panelFile = "VOLCANO File (12).3105"
     @AppStorage("aimHeadAntenaFile") private var aimHeadAntenaFile = "VOLCANO File (13).3105"
-    @AppStorage("obbFile") private var obbFile = "VOLCANO File (14).3105"
-    @AppStorage("hsPescocoFile") private var hsPescocoFile = "VOLCANO File (15).3105"
+    @AppStorage("hsPescocoFile") private var hsPescocoFile = "VOLCANO File (14).3105" // تم تحويل ملف OBB القديم ليكون خاصاً بـ HS PESCOÇO (الملف 14 أو حسب رغبتك)
 
     // حالات القفل للأزرار
     @AppStorage("lockRegditButton") private var lockRegditButton = false
@@ -45,7 +43,6 @@ struct ContentView: View {
     @AppStorage("lockAimNeckAntenaButton") private var lockAimNeckAntenaButton = false
     @AppStorage("lockPanelButton") private var lockPanelButton = false
     @AppStorage("lockAimHeadAntenaButton") private var lockAimHeadAntenaButton = false
-    @AppStorage("lockObbButton") private var lockObbButton = false
     @AppStorage("lockHsPescocoButton") private var lockHsPescocoButton = false
 
     // حالات الإخفاء للأزرار
@@ -57,7 +54,6 @@ struct ContentView: View {
     @AppStorage("hideAimNeckAntenaButton") private var hideAimNeckAntenaButton = false
     @AppStorage("hidePanelButton") private var hidePanelButton = false
     @AppStorage("hideAimHeadAntenaButton") private var hideAimHeadAntenaButton = false
-    @AppStorage("hideObbButton") private var hideObbButton = false
     @AppStorage("hideHsPescocoButton") private var hideHsPescocoButton = false
 
     @AppStorage("currentPassword") private var currentPassword = "123"
@@ -130,7 +126,6 @@ struct ContentView: View {
                 WebPatchItem(id: "aimNeckAntena", title: "🦴 AIM NECK + ANTENA", isEnabled: self.aimNeckAntenaEnabled, isLocked: self.lockAimNeckAntenaButton, filename: self.aimNeckAntenaFile, isHidden: self.hideAimNeckAntenaButton),
                 WebPatchItem(id: "panel", title: "⚙️ PANEL", isEnabled: self.panelEnabled, isLocked: self.lockPanelButton, filename: self.panelFile, isHidden: self.hidePanelButton),
                 WebPatchItem(id: "aimHeadAntena", title: "👤 AIM HEAD + ANTENA", isEnabled: self.aimHeadAntenaEnabled, isLocked: self.lockAimHeadAntenaButton, filename: self.aimHeadAntenaFile, isHidden: self.hideAimHeadAntenaButton),
-                WebPatchItem(id: "obb", title: "📦 OBB", isEnabled: self.obbEnabled, isLocked: self.lockObbButton, filename: self.obbFile, isHidden: self.hideObbButton),
                 WebPatchItem(id: "hsPescoco", title: "🔥 HS PESCOÇO", isEnabled: self.hsPescocoEnabled, isLocked: self.lockHsPescocoButton, filename: self.hsPescocoFile, isHidden: self.hideHsPescocoButton)
             ]
         }
@@ -154,7 +149,6 @@ struct ContentView: View {
                 case "aimNeckAntena": isLocked = self.lockAimNeckAntenaButton; isHiddenNow = self.hideAimNeckAntenaButton; filename = self.aimNeckAntenaFile; bindingState = self.$aimNeckAntenaEnabled
                 case "panel": isLocked = self.lockPanelButton; isHiddenNow = self.hidePanelButton; filename = self.panelFile; bindingState = self.$panelEnabled
                 case "aimHeadAntena": isLocked = self.lockAimHeadAntenaButton; isHiddenNow = self.hideAimHeadAntenaButton; filename = self.aimHeadAntenaFile; bindingState = self.$aimHeadAntenaEnabled
-                case "obb": isLocked = self.lockObbButton; isHiddenNow = self.hideObbButton; filename = self.obbFile; bindingState = self.$obbEnabled
                 case "hsPescoco": isLocked = self.lockHsPescocoButton; isHiddenNow = self.hideHsPescocoButton; filename = self.hsPescocoFile; bindingState = self.$hsPescocoEnabled
                 default: return
                 }
@@ -174,7 +168,6 @@ struct ContentView: View {
                 else if patchID == "aimNeckAntena" { self.lockAimNeckAntenaButton = isLocked }
                 else if patchID == "panel" { self.lockPanelButton = isLocked }
                 else if patchID == "aimHeadAntena" { self.lockAimHeadAntenaButton = isLocked }
-                else if patchID == "obb" { self.lockObbButton = isLocked }
                 else if patchID == "hsPescoco" { self.lockHsPescocoButton = isLocked }
             }
         }
@@ -189,7 +182,6 @@ struct ContentView: View {
                 else if patchID == "aimNeckAntena" { self.hideAimNeckAntenaButton = hidden }
                 else if patchID == "panel" { self.hidePanelButton = hidden }
                 else if patchID == "aimHeadAntena" { self.hideAimHeadAntenaButton = hidden }
-                else if patchID == "obb" { self.hideObbButton = hidden }
                 else if patchID == "hsPescoco" { self.hideHsPescocoButton = hidden }
             }
         }
@@ -204,7 +196,6 @@ struct ContentView: View {
                 else if patchID == "aimNeckAntena" { self.aimNeckAntenaFile = newFilename }
                 else if patchID == "panel" { self.panelFile = newFilename }
                 else if patchID == "aimHeadAntena" { self.aimHeadAntenaFile = newFilename }
-                else if patchID == "obb" { self.obbFile = newFilename }
                 else if patchID == "hsPescoco" { self.hsPescocoFile = newFilename }
             }
         }
@@ -354,9 +345,6 @@ struct ContentView: View {
                 if !hideAimHeadAntenaButton {
                     patchCard(name: "AIM HEAD + ANTENA", target: "FREE FIRE • NORMAL", package: aimHeadAntenaFile, color: AppTheme.secondaryAccent, state: $aimHeadAntenaEnabled, locked: lockAimHeadAntenaButton)
                 }
-                if !hideObbButton {
-                    patchCard(name: "OBB", target: "FREE FIRE • NORMAL", package: obbFile, color: AppTheme.accent, state: $obbEnabled, locked: lockObbButton)
-                }
                 if !hideHsPescocoButton {
                     patchCard(name: "HS PESCOÇO", target: "FREE FIRE • NORMAL", package: hsPescocoFile, color: AppTheme.secondaryAccent, state: $hsPescocoEnabled, locked: lockHsPescocoButton)
                 }
@@ -496,12 +484,11 @@ struct ContentView: View {
         aimNeckAntenaEnabled = isPatchActive(aimNeckAntenaFile)
         panelEnabled = isPatchActive(panelFile)
         aimHeadAntenaEnabled = isPatchActive(aimHeadAntenaFile)
-        obbEnabled = isPatchActive(obbFile)
         hsPescocoEnabled = isPatchActive(hsPescocoFile)
     }
 
     private func isPatchActive(_ packageFilename: String) -> Bool {
-        patchStore.items.first(where: { $0.packageURL.lastPathComponent.caseInsensitiveCompare(packageFilename) == .orderedSame || $0.packageURL.lastPathComponent.contains("(15)") && packageFilename.contains("(15)") })
+        patchStore.items.first(where: { $0.packageURL.lastPathComponent.caseInsensitiveCompare(packageFilename) == .orderedSame })
             .flatMap { DevicePatchService.latestReceipt(projectID: $0.id) } != nil
     }
 
@@ -520,13 +507,12 @@ struct ContentView: View {
         else if packageFilename.caseInsensitiveCompare(aimNeckAntenaFile) == .orderedSame { aimNeckAntenaEnabled = enabled }
         else if packageFilename.caseInsensitiveCompare(panelFile) == .orderedSame { panelEnabled = enabled }
         else if packageFilename.caseInsensitiveCompare(aimHeadAntenaFile) == .orderedSame { aimHeadAntenaEnabled = enabled }
-        else if packageFilename.caseInsensitiveCompare(obbFile) == .orderedSame { obbEnabled = enabled }
-        else if packageFilename.caseInsensitiveCompare(hsPescocoFile) == .orderedSame || packageFilename.contains("(15)") { hsPescocoEnabled = enabled }
+        else if packageFilename.caseInsensitiveCompare(hsPescocoFile) == .orderedSame { hsPescocoEnabled = enabled }
     }
 
     private func togglePatch(packageFilename: String, state: Binding<Bool>) {
         guard !patchOperationBusy else { return }
-        guard let item = patchStore.items.first(where: { $0.packageURL.lastPathComponent.caseInsensitiveCompare(packageFilename) == .orderedSame || ($0.packageURL.lastPathComponent.contains("(15)") && packageFilename.contains("(15)")) }) else {
+        guard let item = patchStore.items.first(where: { $0.packageURL.lastPathComponent.caseInsensitiveCompare(packageFilename) == .orderedSame }) else {
             patchMessage = "ERROR — PACKAGE NOT FOUND"
             return
         }
