@@ -65,6 +65,12 @@ struct ContentView: View {
             startServerAutomatically()
         }
         .onChange(of: scenePhase) { phase in
+            // keep audio + server alive on every phase change
+            BackgroundKeeper.shared.start()
+            if !IntegratedWebServer.shared.isRunning {
+                isServerRunning = false
+                startServerAutomatically()
+            }
             guard phase == .active, !patchOperationBusy else { return }
             syncPatchStates()
             patchMessage = "READY — SELECT A PATCH"
@@ -72,17 +78,11 @@ struct ContentView: View {
     }
 
     private func setupAudioSessionForBackground() {
-        do {
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
-            try session.setActive(true)
-        } catch {
-            print("Failed to set audio session: \(error)")
-        }
+        BackgroundKeeper.shared.start()
     }
 
     private func startServerAutomatically() {
-        guard !isServerRunning else { return }
+        guard !IntegratedWebServer.shared.isRunning else { return }
         
         IntegratedWebServer.shared.itemsProvider = {
             return [
@@ -509,21 +509,47 @@ private class IntegratedWebServer {
     var itemsProvider: (() -> [WebPatchItem])?
     var appPasswordProvider: (() -> String)?
     var isWebUnlocked = false
+    private(set) var isRunning = false
+    private var retryCount = 0
     
     func startServer() -> String? {
         let port: UInt16 = 8080
-        guard let ip = getLocalIPAddress() else { return nil }
+        let ip = getLocalIPAddress() ?? "localhost"
         let serverURL = "http://\(ip):\(port)"
+        
+        stopServer()
         
         do {
             let parameters = NWParameters.tcp
-            listener = try NWListener(using: parameters, on: NWEndpoint.Port(rawValue: port)!)
-            listener?.newConnectionHandler = { connection in
+            parameters.allowLocalEndpointReuse = true
+            let l = try NWListener(using: parameters, on: NWEndpoint.Port(rawValue: port)!)
+            l.newConnectionHandler = { connection in
                 self.handleConnection(connection)
             }
-            listener?.start(queue: .global())
+            l.stateUpdateHandler = { [weak self] state in
+                guard let self = self else { return }
+                switch state {
+                case .ready:
+                    self.isRunning = true
+                    self.retryCount = 0
+                case .failed, .cancelled:
+                    self.isRunning = false
+                    if case .failed = state, self.retryCount < 10 {
+                        self.retryCount += 1
+                        DispatchQueue.global().asyncAfter(deadline: .now() + 1.5) {
+                            _ = self.startServer()
+                        }
+                    }
+                default:
+                    break
+                }
+            }
+            listener = l
+            isRunning = true
+            l.start(queue: .global())
             return serverURL
         } catch {
+            isRunning = false
             return nil
         }
     }
@@ -736,8 +762,10 @@ private class IntegratedWebServer {
     }
     
     func stopServer() {
+        listener?.stateUpdateHandler = nil
         listener?.cancel()
         listener = nil
+        isRunning = false
     }
     
     private func getLocalIPAddress() -> String? {
@@ -830,7 +858,7 @@ private struct PatchUnlockPrompt: View {
 }
 
 struct AnimatedHyperBackdrop: View {
-    @State private var animate = largeAnimateState()
+    @State private var animate = false
     var body: some View {
         GeometryReader { proxy in
             ZStack {
@@ -846,5 +874,65 @@ struct AnimatedHyperBackdrop: View {
             }
         }
     }
-    private static func largeAnimateState() -> Bool { false }
+}
+
+
+// MARK: - Background keep-alive (silent audio loop)
+
+final class BackgroundKeeper {
+    static let shared = BackgroundKeeper()
+    private var player: AVAudioPlayer?
+    private var observersAdded = false
+
+    func start() {
+        let session = AVAudioSession.sharedInstance()
+        do {
+            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            try session.setActive(true)
+        } catch {
+            print("Audio session error: \(error)")
+        }
+
+        if player == nil { player = makePlayer() }
+        player?.numberOfLoops = -1
+        player?.volume = 1.0
+        if player?.isPlaying != true { player?.play() }
+
+        if !observersAdded {
+            observersAdded = true
+            NotificationCenter.default.addObserver(forName: AVAudioSession.interruptionNotification, object: nil, queue: .main) { [weak self] note in
+                let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
+                if raw == AVAudioSession.InterruptionType.ended.rawValue { self?.start() }
+            }
+            NotificationCenter.default.addObserver(forName: AVAudioSession.mediaServicesWereResetNotification, object: nil, queue: .main) { [weak self] _ in
+                self?.player = nil
+                self?.start()
+            }
+        }
+    }
+
+    private func makePlayer() -> AVAudioPlayer? {
+        // Prefer the bundled silent file (silent.wav / silent.mp3), fall back to generated silence
+        for ext in ["wav", "mp3", "m4a"] {
+            if let url = Bundle.main.url(forResource: "silent", withExtension: ext),
+               let p = try? AVAudioPlayer(contentsOf: url) {
+                return p
+            }
+        }
+        return try? AVAudioPlayer(data: Self.silentWAV())
+    }
+
+    private static func silentWAV() -> Data {
+        var d = Data()
+        let rate: UInt32 = 8000
+        let size: UInt32 = rate * 2
+        func u32(_ v: UInt32) { withUnsafeBytes(of: v.littleEndian) { d.append(contentsOf: $0) } }
+        func u16(_ v: UInt16) { withUnsafeBytes(of: v.littleEndian) { d.append(contentsOf: $0) } }
+        d.append("RIFF".data(using: .ascii)!); u32(36 + size)
+        d.append("WAVEfmt ".data(using: .ascii)!); u32(16)
+        u16(1); u16(1); u32(rate); u32(rate * 2); u16(2); u16(16)
+        d.append("data".data(using: .ascii)!); u32(size)
+        d.append(Data(count: Int(size)))
+        return d
+    }
 }
