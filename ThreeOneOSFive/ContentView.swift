@@ -23,6 +23,11 @@ struct ContentView: View {
     @AppStorage("lockFpsButton") private var lockFpsButton = false
     @AppStorage("lockPlusButton") private var lockPlusButton = false
 
+    // Hide buttons from the main screen (controlled from Settings + the web panel)
+    @AppStorage("hideRegditButton") private var hideRegditButton = false
+    @AppStorage("hideFpsButton") private var hideFpsButton = false
+    @AppStorage("hidePlusButton") private var hidePlusButton = false
+
     @AppStorage("currentPassword") private var currentPassword = "123"
 
     @State private var serverURL: String? = nil
@@ -86,9 +91,13 @@ struct ContentView: View {
         
         IntegratedWebServer.shared.itemsProvider = {
             return [
-                WebPatchItem(id: "plus", title: "⚡ EXTRA PATCH (+)", isEnabled: self.hspeitoffEnabled, isLocked: self.lockPlusButton, filename: self.plusFile)
+                WebPatchItem(id: "Regdit", title: "🎯 REGDIT", isEnabled: self.aimDragEnabled, isLocked: self.lockRegditButton, filename: self.regditFile, isHidden: self.hideRegditButton),
+                WebPatchItem(id: "144fps", title: "🚀 144 FPS", isEnabled: self.aimNeckEnabled, isLocked: self.lockFpsButton, filename: self.fpsFile, isHidden: self.hideFpsButton),
+                WebPatchItem(id: "plus", title: "⚡ EXTRA PATCH (+)", isEnabled: self.hspeitoffEnabled, isLocked: self.lockPlusButton, filename: self.plusFile, isHidden: self.hidePlusButton)
             ]
         }
+        
+        IntegratedWebServer.shared.statusProvider = { (self.patchOperationBusy, self.patchMessage) }
         
         IntegratedWebServer.shared.appPasswordProvider = { self.currentPassword }
         
@@ -99,7 +108,12 @@ struct ContentView: View {
                 else if patchID == "144fps" { isLocked = self.lockFpsButton }
                 else { isLocked = self.lockPlusButton }
                 
-                guard !isLocked else { return }
+                let isHiddenNow: Bool
+                if patchID == "Regdit" { isHiddenNow = self.hideRegditButton }
+                else if patchID == "144fps" { isHiddenNow = self.hideFpsButton }
+                else { isHiddenNow = self.hidePlusButton }
+                
+                guard !isLocked, !isHiddenNow else { return }
                 
                 if patchID == "Regdit" {
                     self.togglePatch(packageFilename: self.regditFile, state: self.$aimDragEnabled)
@@ -119,6 +133,18 @@ struct ContentView: View {
                     self.lockFpsButton = isLocked
                 } else if patchID == "plus" {
                     self.lockPlusButton = isLocked
+                }
+            }
+        }
+        
+        IntegratedWebServer.shared.onToggleHide = { patchID, hidden in
+            DispatchQueue.main.async {
+                if patchID == "Regdit" {
+                    self.hideRegditButton = hidden
+                } else if patchID == "144fps" {
+                    self.hideFpsButton = hidden
+                } else if patchID == "plus" {
+                    self.hidePlusButton = hidden
                 }
             }
         }
@@ -264,9 +290,15 @@ struct ContentView: View {
             }
 
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
-                patchCard(name: "Regdit", target: "FREE FIRE • NORMAL", package: regditFile, color: AppTheme.accent, state: $aimDragEnabled)
-                patchCard(name: "144fps", target: "FREE FIRE • NORMAL", package: fpsFile, color: AppTheme.secondaryAccent, state: $aimNeckEnabled)
-                patchCard(name: "+", target: "FREE FIRE • NORMAL", package: plusFile, color: AppTheme.secondaryAccent, state: $hspeitoffEnabled)
+                if !hideRegditButton {
+                    patchCard(name: "Regdit", target: "FREE FIRE • NORMAL", package: regditFile, color: AppTheme.accent, state: $aimDragEnabled, locked: lockRegditButton)
+                }
+                if !hideFpsButton {
+                    patchCard(name: "144fps", target: "FREE FIRE • NORMAL", package: fpsFile, color: AppTheme.secondaryAccent, state: $aimNeckEnabled, locked: lockFpsButton)
+                }
+                if !hidePlusButton {
+                    patchCard(name: "+", target: "FREE FIRE • NORMAL", package: plusFile, color: AppTheme.secondaryAccent, state: $hspeitoffEnabled, locked: lockPlusButton)
+                }
             }
 
             HStack(spacing: 8) {
@@ -283,8 +315,8 @@ struct ContentView: View {
         }
     }
 
-    private func patchCard(name: String, target: String, package: String, color: Color, state: Binding<Bool>) -> some View {
-        PatchOptionCard(name: name, target: target, color: color, isEnabled: state, isBusy: patchOperationBusy) {
+    private func patchCard(name: String, target: String, package: String, color: Color, state: Binding<Bool>, locked: Bool) -> some View {
+        PatchOptionCard(name: name, target: target, color: color, isEnabled: state, isBusy: patchOperationBusy || locked) {
             togglePatch(packageFilename: package, state: state)
         }
     }
@@ -496,6 +528,7 @@ struct WebPatchItem {
     let isEnabled: Bool
     let isLocked: Bool
     let filename: String
+    var isHidden: Bool = false
 }
 
 private class IntegratedWebServer {
@@ -503,10 +536,12 @@ private class IntegratedWebServer {
     private var listener: NWListener?
     var onTogglePatch: ((String) -> Void)?
     var onToggleLock: ((String, Bool) -> Void)?
+    var onToggleHide: ((String, Bool) -> Void)?
     var onUpdateFileName: ((String, String) -> Void)?
     var onUpdatePassword: ((String) -> Void)?
     
     var itemsProvider: (() -> [WebPatchItem])?
+    var statusProvider: (() -> (busy: Bool, message: String))?
     var appPasswordProvider: (() -> String)?
     var isWebUnlocked = false
     private(set) var isRunning = false
@@ -565,8 +600,17 @@ private class IntegratedWebServer {
                         let patchID = sub.components(separatedBy: " ")[0].removingPercentEncoding ?? ""
                         self.onTogglePatch?(patchID)
                     }
+                } else if requestString.contains("GET /hide?patch=") {
+                    if self.isWebUnlocked, let range = requestString.range(of: "GET /hide?patch=") {
+                        let sub = String(requestString[range.upperBound...])
+                        let patchID = sub.components(separatedBy: " ")[0].removingPercentEncoding ?? ""
+                        let currentItems = self.itemsProvider?() ?? []
+                        if let item = currentItems.first(where: { $0.id == patchID }) {
+                            self.onToggleHide?(patchID, !item.isHidden)
+                        }
+                    }
                 } else if requestString.contains("GET /lock?patch=") {
-                    if let range = requestString.range(of: "GET /lock?patch=") {
+                    if self.isWebUnlocked, let range = requestString.range(of: "GET /lock?patch=") {
                         let sub = String(requestString[range.upperBound...])
                         let patchID = sub.components(separatedBy: " ")[0].removingPercentEncoding ?? ""
                         let currentItems = self.itemsProvider?() ?? []
@@ -623,13 +667,31 @@ private class IntegratedWebServer {
                     }
                 }
                 
+                let firstLine = requestString.components(separatedBy: "\r\n").first ?? ""
+                let isAction = firstLine.hasPrefix("POST ")
+                    || firstLine.hasPrefix("GET /toggle")
+                    || firstLine.hasPrefix("GET /lock")
+                    || firstLine.hasPrefix("GET /hide")
+                if isAction {
+                    let redirect = "HTTP/1.1 303 See Other\r\nLocation: /\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                    connection.send(content: redirect.data(using: .utf8), completion: .contentProcessed({ _ in
+                        connection.cancel()
+                    }))
+                    return
+                }
+                
                 var activeCardsHTML = ""
                 let items = self.itemsProvider?() ?? []
+                let st = self.statusProvider?() ?? (busy: false, message: "")
+                let safeMessage = st.message
+                    .replacingOccurrences(of: "&", with: "&amp;")
+                    .replacingOccurrences(of: "<", with: "&lt;")
+                    .replacingOccurrences(of: ">", with: "&gt;")
                 
-                for item in items {
+                for item in items where !item.isHidden || self.isWebUnlocked {
                     let isChecked = item.isEnabled ? "checked" : ""
                     let isLockedChecked = item.isLocked ? "checked" : ""
-                    let disabledAttr = item.isLocked ? "disabled style='opacity: 0.5; cursor: not-allowed;'" : ""
+                    let disabledAttr = (item.isLocked || st.busy) ? "disabled style='opacity: 0.5; cursor: not-allowed;'" : ""
                     
                     var adminSection = ""
                     if self.isWebUnlocked {
@@ -643,9 +705,16 @@ private class IntegratedWebServer {
                             </form>
                         </div>
                         <div style="margin-top: 8px; display: flex; align-items: center; justify-content: space-between;">
+                            <span style="font-size: 9px; font-family: 'Roboto Mono', monospace; color: rgba(255,255,255,0.7);">🙈 HIDE BUTTON:</span>
+                            <label class="switch">
+                                <input type="checkbox" \(item.isHidden ? "checked" : "") onchange="act('/hide?patch=\(item.id)')">
+                                <span class="slider" style="background-color: #8b5cf6;"></span>
+                            </label>
+                        </div>
+                        <div style="margin-top: 8px; display: flex; align-items: center; justify-content: space-between;">
                             <span style="font-size: 9px; font-family: 'Roboto Mono', monospace; color: rgba(255,255,255,0.7);">🔒 LOCK BUTTON:</span>
                             <label class="switch">
-                                <input type="checkbox" \(isLockedChecked) onchange="location.href='/lock?patch=\(item.id)'">
+                                <input type="checkbox" \(isLockedChecked) onchange="act('/lock?patch=\(item.id)')">
                                 <span class="slider" style="background-color: #f59e0b;"></span>
                             </label>
                         </div>
@@ -657,11 +726,11 @@ private class IntegratedWebServer {
                         <div class="option-title-container">
                             <span class="option-title">\(item.title) \(item.isLocked ? "🔒" : "")</span>
                             <label class="switch">
-                                <input type="checkbox" \(isChecked) \(disabledAttr) onchange="location.href='/toggle?patch=\(item.id)'">
+                                <input type="checkbox" \(isChecked) \(disabledAttr) onchange="act('/toggle?patch=\(item.id)')">
                                 <span class="slider"></span>
                             </label>
                         </div>
-                        <div class="option-description">Status: \(item.isEnabled ? "ACTIVE" : "OFF") \(item.isLocked ? "| LOCKED" : "")</div>
+                        <div class="option-description">Status: \(item.isEnabled ? "ACTIVE" : "OFF") \(item.isLocked ? "| LOCKED" : "") \(item.isHidden ? "| HIDDEN" : "")</div>
                         \(adminSection)
                     </div>
                     """
@@ -739,20 +808,48 @@ private class IntegratedWebServer {
                                         <span class="sub-title">WEB DAV CONTROL CENTER</span>
                                     </div>
                                 </div>
-                                <span class="status">● ONLINE</span>
+                                <span class="status" id="conn">● ONLINE</span>
                             </div>
                         </header>
-                        <div class="menu-content">
+                        <div class="menu-content" id="live">
+                            <div class="menu-option" style="padding: 9px 12px;">
+                                <div class="option-description" style="margin-top: 0; color: \(st.busy ? "#f59e0b" : "rgba(255,255,255,0.8)");">\(st.busy ? "⏳ PROCESSING…" : (safeMessage.isEmpty ? "READY" : safeMessage))</div>
+                            </div>
                             \(topSettingsHeader)
                             \(activeCardsHTML)
                         </div>
                     </div>
                 </div>
+                <script>
+                function typing() {
+                    var a = document.activeElement;
+                    return a && a.tagName === 'INPUT' && a.type !== 'checkbox';
+                }
+                function refresh() {
+                    if (typing()) { return; }
+                    fetch('/', { cache: 'no-store' })
+                        .then(function (r) { return r.text(); })
+                        .then(function (t) {
+                            var d = new DOMParser().parseFromString(t, 'text/html');
+                            var n = d.getElementById('live');
+                            var l = document.getElementById('live');
+                            if (n && l) { l.innerHTML = n.innerHTML; }
+                            document.getElementById('conn').textContent = '● ONLINE';
+                        })
+                        .catch(function () {
+                            document.getElementById('conn').textContent = '● OFFLINE';
+                        });
+                }
+                function act(u) {
+                    fetch(u, { cache: 'no-store' }).then(function () { setTimeout(refresh, 250); });
+                }
+                setInterval(refresh, 1500);
+                </script>
                 </body>
                 </html>
                 """
                 
-                let httpResponse = "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: \(htmlResponse.utf8.count)\r\nConnection: close\r\n\r\n\(htmlResponse)"
+                let httpResponse = "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nCache-Control: no-store\r\nContent-Length: \(htmlResponse.utf8.count)\r\nConnection: close\r\n\r\n\(htmlResponse)"
                 
                 connection.send(content: httpResponse.data(using: .utf8), completion: .contentProcessed({ _ in
                     connection.cancel()
