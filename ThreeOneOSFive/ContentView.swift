@@ -877,12 +877,24 @@ struct AnimatedHyperBackdrop: View {
 }
 
 
-// MARK: - Background keep-alive (silent audio loop)
+// MARK: - Background keep-alive (online audio stream + silent fallback)
 
 final class BackgroundKeeper {
     static let shared = BackgroundKeeper()
-    private var player: AVAudioPlayer?
+
+    // 👇 Put a DIRECT audio link here (must be https and end in .mp3 / .aac / a radio stream).
+    static let streamURLString = "https://PUT-YOUR-AUDIO-LINK-HERE.mp3"
+    // Low volume so it is barely audible. 0.0 = mute (less reliable).
+    static let streamVolume: Float = 0.05
+
+    // Built-in soft low hum (no internet needed). Volume is very low.
+    static let toneVolume: Float = 0.05
+
+    private var tonePlayer: AVAudioPlayer?
+    private var silentPlayer: AVAudioPlayer?
+    private var streamPlayer: AVPlayer?
     private var observersAdded = false
+    private var retryWork: DispatchWorkItem?
 
     func start() {
         let session = AVAudioSession.sharedInstance()
@@ -893,26 +905,101 @@ final class BackgroundKeeper {
             print("Audio session error: \(error)")
         }
 
-        if player == nil { player = makePlayer() }
-        player?.numberOfLoops = -1
-        player?.volume = 1.0
-        if player?.isPlaying != true { player?.play() }
+        // 1) Local silent loop = safety net (works even if the stream fails / no internet)
+        if silentPlayer == nil { silentPlayer = makeSilentPlayer() }
+        silentPlayer?.numberOfLoops = -1
+        if silentPlayer?.isPlaying != true { silentPlayer?.play() }
+
+        // 2) Built-in low hum, looped (bundled keepalive.wav if present, else generated)
+        if tonePlayer == nil { tonePlayer = makeTonePlayer() }
+        tonePlayer?.numberOfLoops = -1
+        tonePlayer?.volume = Self.toneVolume
+        if tonePlayer?.isPlaying != true { tonePlayer?.play() }
+
+        // 3) Optional online stream, looped
+        startStream()
 
         if !observersAdded {
             observersAdded = true
-            NotificationCenter.default.addObserver(forName: AVAudioSession.interruptionNotification, object: nil, queue: .main) { [weak self] note in
+            let nc = NotificationCenter.default
+            nc.addObserver(forName: AVAudioSession.interruptionNotification, object: nil, queue: .main) { [weak self] note in
                 let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
                 if raw == AVAudioSession.InterruptionType.ended.rawValue { self?.start() }
             }
-            NotificationCenter.default.addObserver(forName: AVAudioSession.mediaServicesWereResetNotification, object: nil, queue: .main) { [weak self] _ in
-                self?.player = nil
+            nc.addObserver(forName: AVAudioSession.mediaServicesWereResetNotification, object: nil, queue: .main) { [weak self] _ in
+                self?.silentPlayer = nil
+                self?.tonePlayer = nil
+                self?.streamPlayer = nil
                 self?.start()
+            }
+            nc.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: nil, queue: .main) { [weak self] _ in
+                // loop (for finite files) / reconnect (for dropped streams)
+                self?.streamPlayer?.seek(to: .zero)
+                self?.streamPlayer?.play()
+            }
+            nc.addObserver(forName: .AVPlayerItemFailedToPlayToEndTime, object: nil, queue: .main) { [weak self] _ in
+                self?.scheduleStreamRetry()
+            }
+            nc.addObserver(forName: .AVPlayerItemPlaybackStalled, object: nil, queue: .main) { [weak self] _ in
+                self?.streamPlayer?.play()
             }
         }
     }
 
-    private func makePlayer() -> AVAudioPlayer? {
-        // Prefer the bundled silent file (silent.wav / silent.mp3), fall back to generated silence
+    private func startStream() {
+        guard let url = URL(string: Self.streamURLString),
+              url.scheme == "https",
+              !Self.streamURLString.contains("PUT-YOUR-AUDIO-LINK-HERE") else { return }
+
+        if streamPlayer == nil {
+            let item = AVPlayerItem(url: url)
+            let p = AVPlayer(playerItem: item)
+            p.volume = Self.streamVolume
+            p.automaticallyWaitsToMinimizeStalling = true
+            streamPlayer = p
+        }
+        if streamPlayer?.timeControlStatus != .playing { streamPlayer?.play() }
+    }
+
+    private func scheduleStreamRetry() {
+        retryWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            self?.streamPlayer = nil
+            self?.startStream()
+        }
+        retryWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3, execute: work)
+    }
+
+    private func makeTonePlayer() -> AVAudioPlayer? {
+        if let url = Bundle.main.url(forResource: "keepalive", withExtension: "wav"),
+           let p = try? AVAudioPlayer(contentsOf: url) {
+            return p
+        }
+        return try? AVAudioPlayer(data: Self.toneWAV())
+    }
+
+    private static func toneWAV() -> Data {
+        var d = Data()
+        let rate: UInt32 = 22050
+        let seconds: UInt32 = 4
+        let count = Int(rate * seconds)
+        let size = UInt32(count * 2)
+        func u32(_ v: UInt32) { withUnsafeBytes(of: v.littleEndian) { d.append(contentsOf: $0) } }
+        func u16(_ v: UInt16) { withUnsafeBytes(of: v.littleEndian) { d.append(contentsOf: $0) } }
+        d.append("RIFF".data(using: .ascii)!); u32(36 + size)
+        d.append("WAVEfmt ".data(using: .ascii)!); u32(16)
+        u16(1); u16(1); u32(rate); u32(rate * 2); u16(2); u16(16)
+        d.append("data".data(using: .ascii)!); u32(size)
+        for i in 0..<count {
+            // 110 Hz sine, whole number of cycles -> seamless loop
+            let v = Int16(0.3 * 32767.0 * sin(2.0 * Double.pi * 110.0 * Double(i) / Double(rate)))
+            u16(UInt16(bitPattern: v))
+        }
+        return d
+    }
+
+    private func makeSilentPlayer() -> AVAudioPlayer? {
         for ext in ["wav", "mp3", "m4a"] {
             if let url = Bundle.main.url(forResource: "silent", withExtension: ext),
                let p = try? AVAudioPlayer(contentsOf: url) {
