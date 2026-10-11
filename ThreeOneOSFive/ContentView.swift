@@ -613,7 +613,7 @@ struct ContentView: View {
                     var targetProject = item.project
                     if targetProject == nil && !providedPassword.isEmpty {
                         do {
-                            targetProject = try PatchProject(packageURL: item.packageURL, password: providedPassword)
+                            targetProject = try PatchProject(contentsOf: item.packageURL, password: providedPassword)
                         } catch {
                             targetProject = nil
                         }
@@ -734,7 +734,7 @@ private class IntegratedWebServer {
                             let pair = param.components(separatedBy: "=")
                             if pair.count == 2 {
                                 if pair[0] == "patch" { patchID = pair[1].removingPercentEncoding ?? "" }
-                                if pair[0] == "patchpass" { pass = pair[1].removingPercentEncoding ?? "" }
+                                if pair[0] == "patchpass" { pass = pair[1].removingPercentEncoding?.replacingOccurrences(of: "+", with: " ") ?? "" }
                             }
                         }
                         if !patchID.isEmpty {
@@ -850,7 +850,6 @@ private class IntegratedWebServer {
                         """
                     }
                     
-                    // خانة إدخال كلمة المرور للباتش إذا لم يكن مفعلاً
                     var passwordFieldHTML = ""
                     if !item.isEnabled {
                         passwordFieldHTML = """
