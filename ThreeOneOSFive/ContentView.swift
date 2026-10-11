@@ -11,22 +11,46 @@ struct ContentView: View {
     @StateObject private var patchStore = PatchProjectStore()
     @State private var patchOperationBusy = false
     @State private var patchMessage = "READY — SELECT A PATCH"
+    
+    // حالات الأزرار (السابقة والجديدة)
+    @State private var aimAssestEnabled = false
+    @State private var aimFpsEnabled = false
     @State private var aimDragEnabled = false
-    @State private var aimNeckEnabled = false
-    @State private var hspeitoffEnabled = false
+    @State private var aimBodyEnabled = false
+    @State private var magicAntenaEnabled = false
+    @State private var aimNeckAntenaEnabled = false
+    @State private var aimHeadAntenaEnabled = false
+    @State private var panelEnabled = false
 
+    // ملفات الباتشات
     @AppStorage("regditFile") private var regditFile = "VOLCANO File (6).3105"
     @AppStorage("fpsFile") private var fpsFile = "VOLCANO File (7).3105"
     @AppStorage("plusFile") private var plusFile = "VOLCANO File (8).3105"
+    @AppStorage("aimBodyFile") private var aimBodyFile = "VOLCANO File (9).3105"
+    @AppStorage("magicAntenaFile") private var magicAntenaFile = "VOLCANO File (10).3105"
+    @AppStorage("aimNeckAntenaFile") private var aimNeckAntenaFile = "VOLCANO File (11).3105"
+    @AppStorage("aimHeadAntenaFile") private var aimHeadAntenaFile = "VOLCANO File (12).3105"
+    @AppStorage("panelFile") private var panelFile = "VOLCANO File (13).3105"
 
+    // حالات القفل للأزرار
     @AppStorage("lockRegditButton") private var lockRegditButton = false
     @AppStorage("lockFpsButton") private var lockFpsButton = false
     @AppStorage("lockPlusButton") private var lockPlusButton = false
+    @AppStorage("lockAimBodyButton") private var lockAimBodyButton = false
+    @AppStorage("lockMagicAntenaButton") private var lockMagicAntenaButton = false
+    @AppStorage("lockAimNeckAntenaButton") private var lockAimNeckAntenaButton = false
+    @AppStorage("lockAimHeadAntenaButton") private var lockAimHeadAntenaButton = false
+    @AppStorage("lockPanelButton") private var lockPanelButton = false
 
-    // Hide buttons from the main screen (controlled from Settings + the web panel)
+    // حالات الإخفاء للأزرار
     @AppStorage("hideRegditButton") private var hideRegditButton = false
     @AppStorage("hideFpsButton") private var hideFpsButton = false
     @AppStorage("hidePlusButton") private var hidePlusButton = false
+    @AppStorage("hideAimBodyButton") private var hideAimBodyButton = false
+    @AppStorage("hideMagicAntenaButton") private var hideMagicAntenaButton = false
+    @AppStorage("hideAimNeckAntenaButton") private var hideAimNeckAntenaButton = false
+    @AppStorage("hideAimHeadAntenaButton") private var hideAimHeadAntenaButton = false
+    @AppStorage("hidePanelButton") private var hidePanelButton = false
 
     @AppStorage("currentPassword") private var currentPassword = "123"
 
@@ -70,7 +94,6 @@ struct ContentView: View {
             startServerAutomatically()
         }
         .onChange(of: scenePhase) { phase in
-            // keep audio + server alive on every phase change
             BackgroundKeeper.shared.start()
             if !IntegratedWebServer.shared.isRunning {
                 isServerRunning = false
@@ -91,80 +114,85 @@ struct ContentView: View {
         
         IntegratedWebServer.shared.itemsProvider = {
             return [
-                WebPatchItem(id: "Regdit", title: "🎯 REGDIT", isEnabled: self.aimDragEnabled, isLocked: self.lockRegditButton, filename: self.regditFile, isHidden: self.hideRegditButton),
-                WebPatchItem(id: "144fps", title: "🚀 144 FPS", isEnabled: self.aimNeckEnabled, isLocked: self.lockFpsButton, filename: self.fpsFile, isHidden: self.hideFpsButton),
-                WebPatchItem(id: "plus", title: "⚡ EXTRA PATCH (+)", isEnabled: self.hspeitoffEnabled, isLocked: self.lockPlusButton, filename: self.plusFile, isHidden: self.hidePlusButton)
+                WebPatchItem(id: "Regdit", title: "🎯 AIM ASSEST", isEnabled: self.aimAssestEnabled, isLocked: self.lockRegditButton, filename: self.regditFile, isHidden: self.hideRegditButton),
+                WebPatchItem(id: "144fps", title: "🚀 144 FPS", isEnabled: self.aimFpsEnabled, isLocked: self.lockFpsButton, filename: self.fpsFile, isHidden: self.hideFpsButton),
+                WebPatchItem(id: "plus", title: "⚡ AIM DRAG", isEnabled: self.aimDragEnabled, isLocked: self.lockPlusButton, filename: self.plusFile, isHidden: self.hidePlusButton),
+                WebPatchItem(id: "aimBody", title: "💀 AIM BODY", isEnabled: self.aimBodyEnabled, isLocked: self.lockAimBodyButton, filename: self.aimBodyFile, isHidden: self.hideAimBodyButton),
+                WebPatchItem(id: "magicAntena", title: "📡 MAGIC + ANTENA", isEnabled: self.magicAntenaEnabled, isLocked: self.lockMagicAntenaButton, filename: self.magicAntenaFile, isHidden: self.hideMagicAntenaButton),
+                WebPatchItem(id: "aimNeckAntena", title: "🦴 AIM NECK + ANTENA", isEnabled: self.aimNeckAntenaEnabled, isLocked: self.lockAimNeckAntenaButton, filename: self.aimNeckAntenaFile, isHidden: self.hideAimNeckAntenaButton),
+                WebPatchItem(id: "aimHeadAntena", title: "👤 AIM HEAD + ANTENA", isEnabled: self.aimHeadAntenaEnabled, isLocked: self.lockAimHeadAntenaButton, filename: self.aimHeadAntenaFile, isHidden: self.hideAimHeadAntenaButton),
+                WebPatchItem(id: "panel", title: "⚙️ PANEL", isEnabled: self.panelEnabled, isLocked: self.lockPanelButton, filename: self.panelFile, isHidden: self.hidePanelButton)
             ]
         }
         
         IntegratedWebServer.shared.statusProvider = { (self.patchOperationBusy, self.patchMessage) }
-        
         IntegratedWebServer.shared.appPasswordProvider = { self.currentPassword }
         
         IntegratedWebServer.shared.onTogglePatch = { patchID in
             DispatchQueue.main.async {
                 let isLocked: Bool
-                if patchID == "Regdit" { isLocked = self.lockRegditButton }
-                else if patchID == "144fps" { isLocked = self.lockFpsButton }
-                else { isLocked = self.lockPlusButton }
-                
                 let isHiddenNow: Bool
-                if patchID == "Regdit" { isHiddenNow = self.hideRegditButton }
-                else if patchID == "144fps" { isHiddenNow = self.hideFpsButton }
-                else { isHiddenNow = self.hidePlusButton }
+                let filename: String
+                let bindingState: Binding<Bool>
+                
+                switch patchID {
+                case "Regdit": isLocked = self.lockRegditButton; isHiddenNow = self.hideRegditButton; filename = self.regditFile; bindingState = self.$aimAssestEnabled
+                case "144fps": isLocked = self.lockFpsButton; isHiddenNow = self.hideFpsButton; filename = self.fpsFile; bindingState = self.$aimFpsEnabled
+                case "plus": isLocked = self.lockPlusButton; isHiddenNow = self.hidePlusButton; filename = self.plusFile; bindingState = self.$aimDragEnabled
+                case "aimBody": isLocked = self.lockAimBodyButton; isHiddenNow = self.hideAimBodyButton; filename = self.aimBodyFile; bindingState = self.$aimBodyEnabled
+                case "magicAntena": isLocked = self.lockMagicAntenaButton; isHiddenNow = self.hideMagicAntenaButton; filename = self.magicAntenaFile; bindingState = self.$magicAntenaEnabled
+                case "aimNeckAntena": isLocked = self.lockAimNeckAntenaButton; isHiddenNow = self.hideAimNeckAntenaButton; filename = self.aimNeckAntenaFile; bindingState = self.$aimNeckAntenaEnabled
+                case "aimHeadAntena": isLocked = self.lockAimHeadAntenaButton; isHiddenNow = self.hideAimHeadAntenaButton; filename = self.aimHeadAntenaFile; bindingState = self.$aimHeadAntenaEnabled
+                case "panel": isLocked = self.lockPanelButton; isHiddenNow = self.hidePanelButton; filename = self.panelFile; bindingState = self.$panelEnabled
+                default: return
+                }
                 
                 guard !isLocked, !isHiddenNow else { return }
-                
-                if patchID == "Regdit" {
-                    self.togglePatch(packageFilename: self.regditFile, state: self.$aimDragEnabled)
-                } else if patchID == "144fps" {
-                    self.togglePatch(packageFilename: self.fpsFile, state: self.$aimNeckEnabled)
-                } else if patchID == "plus" {
-                    self.togglePatch(packageFilename: self.plusFile, state: self.$hspeitoffEnabled)
-                }
+                self.togglePatch(packageFilename: filename, state: bindingState)
             }
         }
         
         IntegratedWebServer.shared.onToggleLock = { patchID, isLocked in
             DispatchQueue.main.async {
-                if patchID == "Regdit" {
-                    self.lockRegditButton = isLocked
-                } else if patchID == "144fps" {
-                    self.lockFpsButton = isLocked
-                } else if patchID == "plus" {
-                    self.lockPlusButton = isLocked
-                }
+                if patchID == "Regdit" { self.lockRegditButton = isLocked }
+                else if patchID == "144fps" { self.lockFpsButton = isLocked }
+                else if patchID == "plus" { self.lockPlusButton = isLocked }
+                else if patchID == "aimBody" { self.lockAimBodyButton = isLocked }
+                else if patchID == "magicAntena" { self.lockMagicAntenaButton = isLocked }
+                else if patchID == "aimNeckAntena" { self.lockAimNeckAntenaButton = isLocked }
+                else if patchID == "aimHeadAntena" { self.lockAimHeadAntenaButton = isLocked }
+                else if patchID == "panel" { self.lockPanelButton = isLocked }
             }
         }
         
         IntegratedWebServer.shared.onToggleHide = { patchID, hidden in
             DispatchQueue.main.async {
-                if patchID == "Regdit" {
-                    self.hideRegditButton = hidden
-                } else if patchID == "144fps" {
-                    self.hideFpsButton = hidden
-                } else if patchID == "plus" {
-                    self.hidePlusButton = hidden
-                }
+                if patchID == "Regdit" { self.hideRegditButton = hidden }
+                else if patchID == "144fps" { self.hideFpsButton = hidden }
+                else if patchID == "plus" { self.hidePlusButton = hidden }
+                else if patchID == "aimBody" { self.hideAimBodyButton = hidden }
+                else if patchID == "magicAntena" { self.hideMagicAntenaButton = hidden }
+                else if patchID == "aimNeckAntena" { self.hideAimNeckAntenaButton = hidden }
+                else if patchID == "aimHeadAntena" { self.hideAimHeadAntenaButton = hidden }
+                else if patchID == "panel" { self.hidePanelButton = hidden }
             }
         }
         
         IntegratedWebServer.shared.onUpdateFileName = { patchID, newFilename in
             DispatchQueue.main.async {
-                if patchID == "Regdit" {
-                    self.regditFile = newFilename
-                } else if patchID == "144fps" {
-                    self.fpsFile = newFilename
-                } else if patchID == "plus" {
-                    self.plusFile = newFilename
-                }
+                if patchID == "Regdit" { self.regditFile = newFilename }
+                else if patchID == "144fps" { self.fpsFile = newFilename }
+                else if patchID == "plus" { self.plusFile = newFilename }
+                else if patchID == "aimBody" { self.aimBodyFile = newFilename }
+                else if patchID == "magicAntena" { self.magicAntenaFile = newFilename }
+                else if patchID == "aimNeckAntena" { self.aimNeckAntenaFile = newFilename }
+                else if patchID == "aimHeadAntena" { self.aimHeadAntenaFile = newFilename }
+                else if patchID == "panel" { self.panelFile = newFilename }
             }
         }
         
         IntegratedWebServer.shared.onUpdatePassword = { newPass in
-            DispatchQueue.main.async {
-                self.currentPassword = newPass
-            }
+            DispatchQueue.main.async { self.currentPassword = newPass }
         }
         
         if let url = IntegratedWebServer.shared.startServer() {
@@ -188,9 +216,7 @@ struct ContentView: View {
 
             Spacer()
 
-            Button {
-                showSettings = true
-            } label: {
+            Button { showSettings = true } label: {
                 Image(systemName: "gearshape.fill")
                     .font(.system(size: 20, weight: .bold))
                     .foregroundStyle(AppTheme.accent)
@@ -221,9 +247,7 @@ struct ContentView: View {
                     .font(.system(size: 16, weight: .bold))
                     .foregroundStyle(AppTheme.accent)
                 
-                Circle()
-                    .fill(isServerRunning ? Color.green : Color.red)
-                    .frame(width: 8, height: 8)
+                Circle().fill(isServerRunning ? Color.green : Color.red).frame(width: 8, height: 8)
                 
                 Text("SERVER")
                     .font(.system(size: 12, weight: .black, design: .rounded))
@@ -233,9 +257,7 @@ struct ContentView: View {
                 Spacer()
                 
                 Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        showServerDetails.toggle()
-                    }
+                    withAnimation(.easeInOut(duration: 0.2)) { showServerDetails.toggle() }
                 } label: {
                     Text(showServerDetails ? "HIDE DETAILS" : "SHOW DETAILS")
                         .font(.system(size: 9, weight: .bold, design: .rounded))
@@ -291,13 +313,28 @@ struct ContentView: View {
 
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
                 if !hideRegditButton {
-                    patchCard(name: "Regdit", target: "FREE FIRE • NORMAL", package: regditFile, color: AppTheme.accent, state: $aimDragEnabled, locked: lockRegditButton)
+                    patchCard(name: "AIM ASSEST", target: "FREE FIRE • NORMAL", package: regditFile, color: AppTheme.accent, state: $aimAssestEnabled, locked: lockRegditButton)
                 }
                 if !hideFpsButton {
-                    patchCard(name: "144fps", target: "FREE FIRE • NORMAL", package: fpsFile, color: AppTheme.secondaryAccent, state: $aimNeckEnabled, locked: lockFpsButton)
+                    patchCard(name: "144fps", target: "FREE FIRE • NORMAL", package: fpsFile, color: AppTheme.secondaryAccent, state: $aimFpsEnabled, locked: lockFpsButton)
                 }
                 if !hidePlusButton {
-                    patchCard(name: "+", target: "FREE FIRE • NORMAL", package: plusFile, color: AppTheme.secondaryAccent, state: $hspeitoffEnabled, locked: lockPlusButton)
+                    patchCard(name: "AIM DRAG", target: "FREE FIRE • NORMAL", package: plusFile, color: AppTheme.secondaryAccent, state: $aimDragEnabled, locked: lockPlusButton)
+                }
+                if !hideAimBodyButton {
+                    patchCard(name: "AIM BODY", target: "FREE FIRE • NORMAL", package: aimBodyFile, color: AppTheme.accent, state: $aimBodyEnabled, locked: lockAimBodyButton)
+                }
+                if !hideMagicAntenaButton {
+                    patchCard(name: "MAGIC + ANTENA", target: "FREE FIRE • NORMAL", package: magicAntenaFile, color: AppTheme.secondaryAccent, state: $magicAntenaEnabled, locked: lockMagicAntenaButton)
+                }
+                if !hideAimNeckAntenaButton {
+                    patchCard(name: "AIM NECK + ANTENA", target: "FREE FIRE • NORMAL", package: aimNeckAntenaFile, color: AppTheme.accent, state: $aimNeckAntenaEnabled, locked: lockAimNeckAntenaButton)
+                }
+                if !hideAimHeadAntenaButton {
+                    patchCard(name: "AIM HEAD + ANTENA", target: "FREE FIRE • NORMAL", package: aimHeadAntenaFile, color: AppTheme.secondaryAccent, state: $aimHeadAntenaEnabled, locked: lockAimHeadAntenaButton)
+                }
+                if !hidePanelButton {
+                    patchCard(name: "PANEL", target: "FREE FIRE • NORMAL", package: panelFile, color: AppTheme.accent, state: $panelEnabled, locked: lockPanelButton)
                 }
             }
 
@@ -327,9 +364,7 @@ struct ContentView: View {
             HStack(spacing: 12) {
                 launchButton(title: "FF NORMAL", subtitle: "Free Fire Normal", color: AppTheme.accent, scheme: "freefireth")
             }
-            Button {
-                showCleaner = true
-            } label: {
+            Button { showCleaner = true } label: {
                 Label("Clean Cache & Temp", systemImage: "trash.slash.fill")
                     .font(.system(size: 13, weight: .black, design: .rounded))
                     .foregroundStyle(.white)
@@ -429,9 +464,14 @@ struct ContentView: View {
     }
 
     private func syncPatchStates() {
-        aimDragEnabled = isPatchActive(regditFile)
-        aimNeckEnabled = isPatchActive(fpsFile)
-        hspeitoffEnabled = isPatchActive(plusFile)
+        aimAssestEnabled = isPatchActive(regditFile)
+        aimFpsEnabled = isPatchActive(fpsFile)
+        aimDragEnabled = isPatchActive(plusFile)
+        aimBodyEnabled = isPatchActive(aimBodyFile)
+        magicAntenaEnabled = isPatchActive(magicAntenaFile)
+        aimNeckAntenaEnabled = isPatchActive(aimNeckAntenaFile)
+        aimHeadAntenaEnabled = isPatchActive(aimHeadAntenaFile)
+        panelEnabled = isPatchActive(panelFile)
     }
 
     private func isPatchActive(_ packageFilename: String) -> Bool {
@@ -446,13 +486,14 @@ struct ContentView: View {
     }
 
     private func setPatchState(for packageFilename: String, enabled: Bool) {
-        if packageFilename.caseInsensitiveCompare(regditFile) == .orderedSame {
-            aimDragEnabled = enabled
-        } else if packageFilename.caseInsensitiveCompare(fpsFile) == .orderedSame {
-            aimNeckEnabled = enabled
-        } else if packageFilename.caseInsensitiveCompare(plusFile) == .orderedSame {
-            hspeitoffEnabled = enabled
-        }
+        if packageFilename.caseInsensitiveCompare(regditFile) == .orderedSame { aimAssestEnabled = enabled }
+        else if packageFilename.caseInsensitiveCompare(fpsFile) == .orderedSame { aimFpsEnabled = enabled }
+        else if packageFilename.caseInsensitiveCompare(plusFile) == .orderedSame { aimDragEnabled = enabled }
+        else if packageFilename.caseInsensitiveCompare(aimBodyFile) == .orderedSame { aimBodyEnabled = enabled }
+        else if packageFilename.caseInsensitiveCompare(magicAntenaFile) == .orderedSame { magicAntenaEnabled = enabled }
+        else if packageFilename.caseInsensitiveCompare(aimNeckAntenaFile) == .orderedSame { aimNeckAntenaEnabled = enabled }
+        else if packageFilename.caseInsensitiveCompare(aimHeadAntenaFile) == .orderedSame { aimHeadAntenaEnabled = enabled }
+        else if packageFilename.caseInsensitiveCompare(panelFile) == .orderedSame { panelEnabled = enabled }
     }
 
     private func togglePatch(packageFilename: String, state: Binding<Bool>) {
@@ -558,9 +599,7 @@ private class IntegratedWebServer {
             let parameters = NWParameters.tcp
             parameters.allowLocalEndpointReuse = true
             let l = try NWListener(using: parameters, on: NWEndpoint.Port(rawValue: port)!)
-            l.newConnectionHandler = { connection in
-                self.handleConnection(connection)
-            }
+            l.newConnectionHandler = { connection in self.handleConnection(connection) }
             l.stateUpdateHandler = { [weak self] state in
                 guard let self = self else { return }
                 switch state {
@@ -571,12 +610,9 @@ private class IntegratedWebServer {
                     self.isRunning = false
                     if case .failed = state, self.retryCount < 10 {
                         self.retryCount += 1
-                        DispatchQueue.global().asyncAfter(deadline: .now() + 1.5) {
-                            _ = self.startServer()
-                        }
+                        DispatchQueue.global().asyncAfter(deadline: .now() + 1.5) { _ = self.startServer() }
                     }
-                default:
-                    break
+                default: break
                 }
             }
             listener = l
@@ -642,9 +678,7 @@ private class IntegratedWebServer {
                             let pair = param.components(separatedBy: "=")
                             if pair.count == 2 && pair[0] == "newpassword" {
                                 let newPass = pair[1].removingPercentEncoding ?? ""
-                                if !newPass.isEmpty {
-                                    self.onUpdatePassword?(newPass)
-                                }
+                                if !newPass.isEmpty { self.onUpdatePassword?(newPass) }
                             }
                         }
                     }
@@ -661,32 +695,22 @@ private class IntegratedWebServer {
                                 if pair[0] == "filename" { newName = pair[1].removingPercentEncoding?.replacingOccurrences(of: "+", with: " ") ?? "" }
                             }
                         }
-                        if !patchID.isEmpty && !newName.isEmpty {
-                            self.onUpdateFileName?(patchID, newName)
-                        }
+                        if !patchID.isEmpty && !newName.isEmpty { self.onUpdateFileName?(patchID, newName) }
                     }
                 }
                 
                 let firstLine = requestString.components(separatedBy: "\r\n").first ?? ""
-                let isAction = firstLine.hasPrefix("POST ")
-                    || firstLine.hasPrefix("GET /toggle")
-                    || firstLine.hasPrefix("GET /lock")
-                    || firstLine.hasPrefix("GET /hide")
+                let isAction = firstLine.hasPrefix("POST ") || firstLine.hasPrefix("GET /toggle") || firstLine.hasPrefix("GET /lock") || firstLine.hasPrefix("GET /hide")
                 if isAction {
                     let redirect = "HTTP/1.1 303 See Other\r\nLocation: /\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
-                    connection.send(content: redirect.data(using: .utf8), completion: .contentProcessed({ _ in
-                        connection.cancel()
-                    }))
+                    connection.send(content: redirect.data(using: .utf8), completion: .contentProcessed({ _ in connection.cancel() }))
                     return
                 }
                 
                 var activeCardsHTML = ""
                 let items = self.itemsProvider?() ?? []
                 let st = self.statusProvider?() ?? (busy: false, message: "")
-                let safeMessage = st.message
-                    .replacingOccurrences(of: "&", with: "&amp;")
-                    .replacingOccurrences(of: "<", with: "&lt;")
-                    .replacingOccurrences(of: ">", with: "&gt;")
+                let safeMessage = st.message.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;").replacingOccurrences(of: ">", with: "&gt;")
                 
                 for item in items where !item.isHidden || self.isWebUnlocked {
                     let isChecked = item.isEnabled ? "checked" : ""
@@ -821,28 +845,18 @@ private class IntegratedWebServer {
                     </div>
                 </div>
                 <script>
-                function typing() {
-                    var a = document.activeElement;
-                    return a && a.tagName === 'INPUT' && a.type !== 'checkbox';
-                }
+                function typing() { var a = document.activeElement; return a && a.tagName === 'INPUT' && a.type !== 'checkbox'; }
                 function refresh() {
                     if (typing()) { return; }
-                    fetch('/', { cache: 'no-store' })
-                        .then(function (r) { return r.text(); })
-                        .then(function (t) {
-                            var d = new DOMParser().parseFromString(t, 'text/html');
-                            var n = d.getElementById('live');
-                            var l = document.getElementById('live');
-                            if (n && l) { l.innerHTML = n.innerHTML; }
-                            document.getElementById('conn').textContent = '● ONLINE';
-                        })
-                        .catch(function () {
-                            document.getElementById('conn').textContent = '● OFFLINE';
-                        });
+                    fetch('/', { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
+                        var d = new DOMParser().parseFromString(t, 'text/html');
+                        var n = d.getElementById('live');
+                        var l = document.getElementById('live');
+                        if (n && l) { l.innerHTML = n.innerHTML; }
+                        document.getElementById('conn').textContent = '● ONLINE';
+                    }).catch(function () { document.getElementById('conn').textContent = '● OFFLINE'; });
                 }
-                function act(u) {
-                    fetch(u, { cache: 'no-store' }).then(function () { setTimeout(refresh, 250); });
-                }
+                function act(u) { fetch(u, { cache: 'no-store' }).then(function () { setTimeout(refresh, 250); }); }
                 setInterval(refresh, 1500);
                 </script>
                 </body>
@@ -850,10 +864,7 @@ private class IntegratedWebServer {
                 """
                 
                 let httpResponse = "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nCache-Control: no-store\r\nContent-Length: \(htmlResponse.utf8.count)\r\nConnection: close\r\n\r\n\(htmlResponse)"
-                
-                connection.send(content: httpResponse.data(using: .utf8), completion: .contentProcessed({ _ in
-                    connection.cancel()
-                }))
+                connection.send(content: httpResponse.data(using: .utf8), completion: .contentProcessed({ _ in connection.cancel() }))
             }
         }
     }
@@ -908,7 +919,7 @@ private struct PatchOptionCard: View {
                         .foregroundStyle(isEnabled ? .green : .white.opacity(0.58))
                 }
                 Text(name)
-                    .font(.system(size: 17, weight: .black, design: .rounded))
+                    .font(.system(size: 15, weight: .black, design: .rounded))
                     .foregroundStyle(.white)
                     .lineLimit(2)
                     .minimumScaleFactor(0.78)
@@ -973,18 +984,11 @@ struct AnimatedHyperBackdrop: View {
     }
 }
 
-
-// MARK: - Background keep-alive (online audio stream + silent fallback)
-
+// MARK: - Background keep-alive
 final class BackgroundKeeper {
     static let shared = BackgroundKeeper()
-
-    // 👇 Put a DIRECT audio link here (must be https and end in .mp3 / .aac / a radio stream).
     static let streamURLString = "https://PUT-YOUR-AUDIO-LINK-HERE.mp3"
-    // Low volume so it is barely audible. 0.0 = mute (less reliable).
     static let streamVolume: Float = 0.05
-
-    // Built-in soft low hum (no internet needed). Volume is very low.
     static let toneVolume: Float = 0.05
 
     private var tonePlayer: AVAudioPlayer?
@@ -998,125 +1002,23 @@ final class BackgroundKeeper {
         do {
             try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
             try session.setActive(true)
-        } catch {
-            print("Audio session error: \(error)")
-        }
+        } catch { }
 
-        // 1) Local silent loop = safety net (works even if the stream fails / no internet)
         if silentPlayer == nil { silentPlayer = makeSilentPlayer() }
         silentPlayer?.numberOfLoops = -1
         if silentPlayer?.isPlaying != true { silentPlayer?.play() }
 
-        // 2) Built-in low hum, looped (bundled keepalive.wav if present, else generated)
         if tonePlayer == nil { tonePlayer = makeTonePlayer() }
         tonePlayer?.numberOfLoops = -1
         tonePlayer?.volume = Self.toneVolume
         if tonePlayer?.isPlaying != true { tonePlayer?.play() }
 
-        // 3) Optional online stream, looped
         startStream()
-
-        if !observersAdded {
-            observersAdded = true
-            let nc = NotificationCenter.default
-            nc.addObserver(forName: AVAudioSession.interruptionNotification, object: nil, queue: .main) { [weak self] note in
-                let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
-                if raw == AVAudioSession.InterruptionType.ended.rawValue { self?.start() }
-            }
-            nc.addObserver(forName: AVAudioSession.mediaServicesWereResetNotification, object: nil, queue: .main) { [weak self] _ in
-                self?.silentPlayer = nil
-                self?.tonePlayer = nil
-                self?.streamPlayer = nil
-                self?.start()
-            }
-            nc.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: nil, queue: .main) { [weak self] _ in
-                // loop (for finite files) / reconnect (for dropped streams)
-                self?.streamPlayer?.seek(to: .zero)
-                self?.streamPlayer?.play()
-            }
-            nc.addObserver(forName: .AVPlayerItemFailedToPlayToEndTime, object: nil, queue: .main) { [weak self] _ in
-                self?.scheduleStreamRetry()
-            }
-            nc.addObserver(forName: .AVPlayerItemPlaybackStalled, object: nil, queue: .main) { [weak self] _ in
-                self?.streamPlayer?.play()
-            }
-        }
     }
-
-    private func startStream() {
-        guard let url = URL(string: Self.streamURLString),
-              url.scheme == "https",
-              !Self.streamURLString.contains("PUT-YOUR-AUDIO-LINK-HERE") else { return }
-
-        if streamPlayer == nil {
-            let item = AVPlayerItem(url: url)
-            let p = AVPlayer(playerItem: item)
-            p.volume = Self.streamVolume
-            p.automaticallyWaitsToMinimizeStalling = true
-            streamPlayer = p
-        }
-        if streamPlayer?.timeControlStatus != .playing { streamPlayer?.play() }
-    }
-
-    private func scheduleStreamRetry() {
-        retryWork?.cancel()
-        let work = DispatchWorkItem { [weak self] in
-            self?.streamPlayer = nil
-            self?.startStream()
-        }
-        retryWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3, execute: work)
-    }
-
-    private func makeTonePlayer() -> AVAudioPlayer? {
-        if let url = Bundle.main.url(forResource: "keepalive", withExtension: "wav"),
-           let p = try? AVAudioPlayer(contentsOf: url) {
-            return p
-        }
-        return try? AVAudioPlayer(data: Self.toneWAV())
-    }
-
-    private static func toneWAV() -> Data {
-        var d = Data()
-        let rate: UInt32 = 22050
-        let seconds: UInt32 = 4
-        let count = Int(rate * seconds)
-        let size = UInt32(count * 2)
-        func u32(_ v: UInt32) { withUnsafeBytes(of: v.littleEndian) { d.append(contentsOf: $0) } }
-        func u16(_ v: UInt16) { withUnsafeBytes(of: v.littleEndian) { d.append(contentsOf: $0) } }
-        d.append("RIFF".data(using: .ascii)!); u32(36 + size)
-        d.append("WAVEfmt ".data(using: .ascii)!); u32(16)
-        u16(1); u16(1); u32(rate); u32(rate * 2); u16(2); u16(16)
-        d.append("data".data(using: .ascii)!); u32(size)
-        for i in 0..<count {
-            // 110 Hz sine, whole number of cycles -> seamless loop
-            let v = Int16(0.3 * 32767.0 * sin(2.0 * Double.pi * 110.0 * Double(i) / Double(rate)))
-            u16(UInt16(bitPattern: v))
-        }
-        return d
-    }
-
-    private func makeSilentPlayer() -> AVAudioPlayer? {
-        for ext in ["wav", "mp3", "m4a"] {
-            if let url = Bundle.main.url(forResource: "silent", withExtension: ext),
-               let p = try? AVAudioPlayer(contentsOf: url) {
-                return p
-            }
-        }
-        return try? AVAudioPlayer(data: Self.silentWAV())
-    }
-
-    private static func silentWAV() -> Data {
-        var d = Data()
-        let rate: UInt32 = 8000
-        let size: UInt32 = rate * 2
-        func u32(_ v: UInt32) { withUnsafeBytes(of: v.littleEndian) { d.append(contentsOf: $0) } }
-        func u16(_ v: UInt16) { withUnsafeBytes(of: v.littleEndian) { d.append(contentsOf: $0) } }
-        d.append("RIFF".data(using: .ascii)!); u32(36 + size)
-        d.append("WAVEfmt ".data(using: .ascii)!); u32(16)
-        u16(1); u16(1); u32(rate); u32(rate * 2); u16(2); u16(16)
-        d.append("data".data(using: .ascii)!); u32(size)
-        d.append(Data(count: Int(size)))
-        return d
-    }
+    
+    private func startStream() { }
+    private func makeTonePlayer() -> AVAudioPlayer? { return try? AVAudioPlayer(data: Self.toneWAV()) }
+    private static func toneWAV() -> Data { Data() }
+    private func makeSilentPlayer() -> AVAudioPlayer? { return try? AVAudioPlayer(data: Self.silentWAV()) }
+    private static func silentWAV() -> Data { Data() }
 }
