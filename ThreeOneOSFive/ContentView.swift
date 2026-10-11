@@ -93,8 +93,8 @@ struct ContentView: View {
         .sheet(isPresented: $showCleaner) {
             CleanerView()
         }
-        .sheet(item: $patchStore.passwordRequest, onDismiss: patchStore.cancelUnlock) { _ in
-            PatchUnlockPrompt(store: patchStore)
+        .sheet(item: $patchStore.passwordRequest, onDismiss: patchStore.cancelUnlock) { item in
+            PatchUnlockPrompt(store: patchStore, item: item)
         }
         .onAppear {
             setupAudioSessionForBackground()
@@ -138,29 +138,26 @@ struct ContentView: View {
         IntegratedWebServer.shared.statusProvider = { (self.patchOperationBusy, self.patchMessage) }
         IntegratedWebServer.shared.appPasswordProvider = { self.currentPassword }
         
-        IntegratedWebServer.shared.onTogglePatch = { patchID in
+        IntegratedWebServer.shared.onTogglePatch = { patchID, webPassword in
             DispatchQueue.main.async {
-                let isLocked: Bool
-                let isHiddenNow: Bool
                 let filename: String
                 let bindingState: Binding<Bool>
                 
                 switch patchID {
-                case "Regdit": isLocked = self.lockRegditButton; isHiddenNow = self.hideRegditButton; filename = self.regditFile; bindingState = self.$aimAssestEnabled
-                case "144fps": isLocked = self.lockFpsButton; isHiddenNow = self.hideFpsButton; filename = self.fpsFile; bindingState = self.$aimFpsEnabled
-                case "plus": isLocked = self.lockPlusButton; isHiddenNow = self.hidePlusButton; filename = self.plusFile; bindingState = self.$aimDragEnabled
-                case "aimBody": isLocked = self.lockAimBodyButton; isHiddenNow = self.hideAimBodyButton; filename = self.aimBodyFile; bindingState = self.$aimBodyEnabled
-                case "magicAntena": isLocked = self.lockMagicAntenaButton; isHiddenNow = self.hideMagicAntenaButton; filename = self.magicAntenaFile; bindingState = self.$magicAntenaEnabled
-                case "aimNeckAntena": isLocked = self.lockAimNeckAntenaButton; isHiddenNow = self.hideAimNeckAntenaButton; filename = self.aimNeckAntenaFile; bindingState = self.$aimNeckAntenaEnabled
-                case "panel": isLocked = self.lockPanelButton; isHiddenNow = self.hidePanelButton; filename = self.panelFile; bindingState = self.$panelEnabled
-                case "aimHeadAntena": isLocked = self.lockAimHeadAntenaButton; isHiddenNow = self.hideAimHeadAntenaButton; filename = self.aimHeadAntenaFile; bindingState = self.$aimHeadAntenaEnabled
-                case "obb": isLocked = self.lockObbButton; isHiddenNow = self.hideObbButton; filename = self.obbFile; bindingState = self.$obbEnabled
-                case "hsPescoco": isLocked = self.lockHsPescocoButton; isHiddenNow = self.hideHsPescocoButton; filename = self.hsPescocoFile; bindingState = self.$hsPescocoEnabled
+                case "Regdit": filename = self.regditFile; bindingState = self.$aimAssestEnabled
+                case "144fps": filename = self.fpsFile; bindingState = self.$aimFpsEnabled
+                case "plus": filename = self.plusFile; bindingState = self.$aimDragEnabled
+                case "aimBody": filename = self.aimBodyFile; bindingState = self.$aimBodyEnabled
+                case "magicAntena": filename = self.magicAntenaFile; bindingState = self.$magicAntenaEnabled
+                case "aimNeckAntena": filename = self.aimNeckAntenaFile; bindingState = self.$aimNeckAntenaEnabled
+                case "panel": filename = self.panelFile; bindingState = self.$panelEnabled
+                case "aimHeadAntena": filename = self.aimHeadAntenaFile; bindingState = self.$aimHeadAntenaEnabled
+                case "obb": filename = self.obbFile; bindingState = self.$obbEnabled
+                case "hsPescoco": filename = self.hsPescocoFile; bindingState = self.$hsPescocoEnabled
                 default: return
                 }
                 
-                guard !isLocked, !isHiddenNow else { return }
-                self.togglePatch(packageFilename: filename, state: bindingState)
+                self.togglePatchFromWeb(packageFilename: filename, state: bindingState, providedPassword: webPassword)
             }
         }
         
@@ -585,6 +582,75 @@ struct ContentView: View {
         }
     }
 
+    private func togglePatchFromWeb(packageFilename: String, state: Binding<Bool>, providedPassword: String) {
+        guard !patchOperationBusy else { return }
+        guard let item = patchStore.items.first(where: { $0.packageURL.lastPathComponent.caseInsensitiveCompare(packageFilename) == .orderedSame }) else {
+            patchMessage = "ERROR — PACKAGE NOT FOUND"
+            return
+        }
+
+        let wasEnabled = state.wrappedValue
+        patchOperationBusy = true
+        patchMessage = "PROCESSING — \(packageFilename)"
+        let projectID = item.id
+
+        DispatchQueue.global(qos: .userInitiated).async {
+            let result: PatchActionResult
+            do {
+                if wasEnabled {
+                    guard let receipt = DevicePatchService.latestReceipt(projectID: projectID) else {
+                        result = .unavailable("NO ACTIVE RECEIPT")
+                        DispatchQueue.main.async {
+                            self.setPatchState(for: packageFilename, enabled: false)
+                            self.patchMessage = "OFF"
+                            self.patchOperationBusy = false
+                        }
+                        return
+                    }
+                    try DevicePatchService.restore(receipt: receipt)
+                    result = .restored
+                } else {
+                    var targetProject = item.project
+                    if targetProject == nil && !providedPassword.isEmpty {
+                        do {
+                            targetProject = try PatchProject(packageURL: item.packageURL, password: providedPassword)
+                        } catch {
+                            targetProject = nil
+                        }
+                    }
+                    
+                    guard let proj = targetProject else {
+                        result = .unavailable("PASSWORD REQUIRED")
+                        DispatchQueue.main.async {
+                            self.patchStore.requestUnlock(for: item)
+                            self.patchMessage = "PASSWORD REQUIRED"
+                            self.patchOperationBusy = false
+                        }
+                        return
+                    }
+                    _ = try DevicePatchService.apply(project: proj)
+                    result = .applied
+                }
+            } catch {
+                result = .unavailable("FAILED")
+            }
+
+            DispatchQueue.main.async {
+                switch result {
+                case .applied:
+                    self.setPatchState(for: packageFilename, enabled: true)
+                    self.patchMessage = "Inject Successful — \(packageFilename)"
+                case .restored:
+                    self.setPatchState(for: packageFilename, enabled: false)
+                    self.patchMessage = "Restore Successful — \(packageFilename)"
+                case .unavailable(let message):
+                    self.patchMessage = message
+                }
+                self.patchOperationBusy = false
+            }
+        }
+    }
+
     private func openGame(scheme: String) {
         guard let url = URL(string: "\(scheme)://") else { return }
         UIApplication.shared.open(url, options: [:]) { _ in }
@@ -603,7 +669,7 @@ struct WebPatchItem {
 private class IntegratedWebServer {
     static let shared = IntegratedWebServer()
     private var listener: NWListener?
-    var onTogglePatch: ((String) -> Void)?
+    var onTogglePatch: ((String, String) -> Void)?
     var onToggleLock: ((String, Bool) -> Void)?
     var onToggleHide: ((String, Bool) -> Void)?
     var onUpdateFileName: ((String, String) -> Void)?
@@ -658,11 +724,22 @@ private class IntegratedWebServer {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { data, _, _, _ in
             if let data = data, let requestString = String(data: data, encoding: .utf8) {
                 
-                if requestString.contains("GET /toggle?patch=") {
-                    if let range = requestString.range(of: "GET /toggle?patch=") {
-                        let sub = String(requestString[range.upperBound...])
-                        let patchID = sub.components(separatedBy: " ")[0].removingPercentEncoding ?? ""
-                        self.onTogglePatch?(patchID)
+                if requestString.contains("POST /toggle") {
+                    if let bodyRange = requestString.range(of: "\r\n\r\n") {
+                        let body = String(requestString[bodyRange.upperBound...])
+                        let params = body.components(separatedBy: "&")
+                        var patchID = ""
+                        var pass = ""
+                        for param in params {
+                            let pair = param.components(separatedBy: "=")
+                            if pair.count == 2 {
+                                if pair[0] == "patch" { patchID = pair[1].removingPercentEncoding ?? "" }
+                                if pair[0] == "patchpass" { pass = pair[1].removingPercentEncoding ?? "" }
+                            }
+                        }
+                        if !patchID.isEmpty {
+                            self.onTogglePatch?(patchID, pass)
+                        }
                     }
                 } else if requestString.contains("GET /hide?patch=") {
                     if self.isWebUnlocked, let range = requestString.range(of: "GET /hide?patch=") {
@@ -728,7 +805,7 @@ private class IntegratedWebServer {
                 }
                 
                 let firstLine = requestString.components(separatedBy: "\r\n").first ?? ""
-                let isAction = firstLine.hasPrefix("POST ") || firstLine.hasPrefix("GET /toggle") || firstLine.hasPrefix("GET /lock") || firstLine.hasPrefix("GET /hide")
+                let isAction = firstLine.hasPrefix("POST ")
                 if isAction {
                     let redirect = "HTTP/1.1 303 See Other\r\nLocation: /\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
                     connection.send(content: redirect.data(using: .utf8), completion: .contentProcessed({ _ in connection.cancel() }))
@@ -759,29 +836,43 @@ private class IntegratedWebServer {
                         <div style="margin-top: 8px; display: flex; align-items: center; justify-content: space-between;">
                             <span style="font-size: 9px; font-family: 'Roboto Mono', monospace; color: rgba(255,255,255,0.7);">🙈 HIDE BUTTON:</span>
                             <label class="switch">
-                                <input type="checkbox" \(item.isHidden ? "checked" : "") onchange="act('/hide?patch=\(item.id)')">
+                                <input type="checkbox" \(item.isHidden ? "checked" : "") onchange="actGet('/hide?patch=\(item.id)')">
                                 <span class="slider" style="background-color: #8b5cf6;"></span>
                             </label>
                         </div>
                         <div style="margin-top: 8px; display: flex; align-items: center; justify-content: space-between;">
                             <span style="font-size: 9px; font-family: 'Roboto Mono', monospace; color: rgba(255,255,255,0.7);">🔒 LOCK BUTTON:</span>
                             <label class="switch">
-                                <input type="checkbox" \(isLockedChecked) onchange="act('/lock?patch=\(item.id)')">
+                                <input type="checkbox" \(isLockedChecked) onchange="actGet('/lock?patch=\(item.id)')">
                                 <span class="slider" style="background-color: #f59e0b;"></span>
                             </label>
                         </div>
                         """
                     }
                     
+                    // خانة إدخال كلمة المرور للباتش إذا لم يكن مفعلاً
+                    var passwordFieldHTML = ""
+                    if !item.isEnabled {
+                        passwordFieldHTML = """
+                        <div class="input-box" style="margin-top: 6px;">
+                            <input type="password" name="patchpass" placeholder="Package Password (if any)" style="width: 100%; padding: 5px; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,40,40,0.2); color: white; border-radius: 5px; font-size: 8px;">
+                        </div>
+                        """
+                    }
+                    
                     activeCardsHTML += """
                     <div class="menu-option">
-                        <div class="option-title-container">
-                            <span class="option-title">\(item.title) \(item.isLocked ? "🔒" : "")</span>
-                            <label class="switch">
-                                <input type="checkbox" \(isChecked) \(disabledAttr) onchange="act('/toggle?patch=\(item.id)')">
-                                <span class="slider"></span>
-                            </label>
-                        </div>
+                        <form action="/toggle" method="POST">
+                            <input type="hidden" name="patch" value="\(item.id)">
+                            <div class="option-title-container">
+                                <span class="option-title">\(item.title) \(item.isLocked ? "🔒" : "")</span>
+                                <label class="switch">
+                                    <input type="checkbox" \(isChecked) \(disabledAttr) onchange="this.form.submit()">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            \(passwordFieldHTML)
+                        </form>
                         <div class="option-description">Status: \(item.isEnabled ? "ACTIVE" : "OFF") \(item.isLocked ? "| LOCKED" : "") \(item.isHidden ? "| HIDDEN" : "")</div>
                         \(adminSection)
                     </div>
@@ -884,7 +975,7 @@ private class IntegratedWebServer {
                         document.getElementById('conn').textContent = '● ONLINE';
                     }).catch(function () { document.getElementById('conn').textContent = '● OFFLINE'; });
                 }
-                function act(u) { fetch(u, { cache: 'no-store' }).then(function () { setTimeout(refresh, 250); }); }
+                function actGet(u) { fetch(u, { cache: 'no-store' }).then(function () { setTimeout(refresh, 250); }); }
                 setInterval(refresh, 1500);
                 </script>
                 </body>
@@ -978,6 +1069,7 @@ private struct PatchOptionCard: View {
 private struct PatchUnlockPrompt: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var store: PatchProjectStore
+    let item: PatchProjectStore.Item
     @State private var password = ""
 
     var body: some View {
@@ -986,6 +1078,12 @@ private struct PatchUnlockPrompt: View {
                 Section {
                     SecureField("Package password", text: $password)
                         .textContentType(.password)
+                }
+                Section {
+                    Button("Unlock & Apply") {
+                        store.unlock(item: item, password: password)
+                        dismiss()
+                    }
                 }
             }
             .navigationTitle("Unlock package")
