@@ -185,9 +185,9 @@ struct LicenseActivationView: View {
                 Color.black.ignoresSafeArea()
 
                 VStack(alignment: .leading, spacing: 0) {
-                    // شريط أدوات التنسيق العلوي المطابق للصورة تماماً
+                    // شريط الأزرار والتنسيقات المطابق للصورة
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 22) {
+                        HStack(spacing: 24) {
                             Button(action: { appendFormatting(tag: "**") }) {
                                 Text("B").font(.system(size: 17, weight: .bold))
                             }
@@ -218,6 +218,9 @@ struct LicenseActivationView: View {
                         .padding(.vertical, 10)
                     }
                     .background(Color(white: 0.12))
+                    .clipShape(Capsule())
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
 
                     TextEditor(text: $noteContent)
                         .focused($isNoteFocused)
