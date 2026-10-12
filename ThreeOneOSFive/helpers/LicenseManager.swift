@@ -16,7 +16,7 @@ final class LicenseManager: ObservableObject {
     private var lastAttemptAt: Date?
 
     init() {
-        isActive = hasRememberedKey
+        isActive = false
     }
 
     var hasRememberedKey: Bool { string(for: keyAccount) != nil }
