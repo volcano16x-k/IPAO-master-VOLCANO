@@ -6,7 +6,7 @@ struct ThreeOneOSFiveApp: App {
     @StateObject private var appState = AppState()
     @StateObject private var licenseManager = LicenseManager()
     @StateObject private var patchDraftCoordinator = PatchDraftCoordinator()
-    @StateObject private var fileOperationCoordinator = FileOperationCoordinator();
+    @StateObject private var fileOperationCoordinator = FileOperationCoordinator()
     @AppStorage(AppLanguage.storageKey) private var languageCode = AppLanguage.english.rawValue
     @State private var updateOffer: AppUpdateChecker.Offer?
     @Environment(\.scenePhase) private var scenePhase
@@ -37,11 +37,11 @@ struct ThreeOneOSFiveApp: App {
                     LicenseActivationView(manager: licenseManager)
                 }
             }
-                .environmentObject(appState)
-                .environmentObject(patchDraftCoordinator)
-                .environmentObject(fileOperationCoordinator)
-                .environment(\.appLanguage, language)
-                .environment(\.locale, language.locale)
+            .environmentObject(appState)
+            .environmentObject(patchDraftCoordinator)
+            .environmentObject(fileOperationCoordinator)
+            .environment(\.appLanguage, language)
+            .environment(\.locale, language.locale)
             .alert(item: $updateOffer) { offer in
                 Alert(
                     title: Text(language.text("update.title")),
@@ -59,8 +59,8 @@ struct ThreeOneOSFiveApp: App {
                 appState.detectSupport()
                 checkForUpdate()
             }
-            .onChange(of: scenePhase) { phase in
-                guard phase == .active else { return }
+            .onChange(of: scenePhase) { oldPhase, newPhase in
+                guard newPhase == .active else { return }
                 licenseManager.beginLaunchSession()
                 appState.detectSupport()
             }
@@ -135,8 +135,6 @@ class AppState: ObservableObject {
     private func refreshKernelExploitStatus() {
         guard !kernelExploitRunning else { return }
 
-        // iOS < 26: kernel R/W success persists (no sandbox probe)
-        // iOS >= 26: verify full sandbox escape is still active
         if KernelExploit.requiresSandboxEscape {
             if KernelExploit.hasSandboxAccess() {
                 if !exploitStatus.isSuccess {
