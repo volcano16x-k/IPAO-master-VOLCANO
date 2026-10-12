@@ -1,6 +1,11 @@
 import SwiftUI
 
-// MARK: - Main View
+// نموذج نموذج بيانات الملاحظات للحفظ المحلي
+struct NoteItem: Identifiable, Codable {
+    var id = UUID()
+    var content: String
+    var date: Date
+}
 
 struct LicenseActivationView: View {
     @ObservedObject var manager: LicenseManager
@@ -15,13 +20,15 @@ struct LicenseActivationView: View {
     @State private var noteContent = ""
     @FocusState private var isNoteFocused: Bool
 
+    // حفظ الملاحظات محلياً باستخدام AppStorage
+    @AppStorage("saved_notes") private var savedNotesData: Data = Data()
+    @State private var notesList: [NoteItem] = []
+
     enum ActivationKeyStatus {
         case empty
         case invalid
         case valid
     }
-
-    // MARK: - Colors
 
     private let chipFill = Color(white: 0.105)
     private let strokeColor = Color.white.opacity(0.08)
@@ -44,7 +51,7 @@ struct LicenseActivationView: View {
                         Spacer()
                     }
                     HStack {
-                        Text("Aucune note")
+                        Text(notesList.isEmpty ? "Aucune note" : "\(notesList.count) note\(notesList.count > 1 ? "s" : "")")
                             .font(.system(size: 15, weight: .regular))
                             .foregroundStyle(.gray)
                         Spacer()
@@ -55,22 +62,41 @@ struct LicenseActivationView: View {
 
                 Spacer(minLength: 0)
 
-                // المنتصف (أيقونة Aucune note)
-                VStack(spacing: 16) {
-                    Image(systemName: "note.text")
-                        .font(.system(size: 40, weight: .light))
-                        .foregroundStyle(.gray)
+                // المنتصف (عرض الملاحظات أو أيقونة Aucune note إذا كانت فارغة)
+                if notesList.isEmpty {
+                    VStack(spacing: 16) {
+                        Image(systemName: "note.text")
+                            .font(.system(size: 40, weight: .light))
+                            .foregroundStyle(.gray)
 
-                    Text("Aucune note")
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(.white)
+                        Text("Aucune note")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundStyle(.white)
 
-                    if !statusMessage.isEmpty {
-                        Text(statusMessage)
-                            .font(.system(size: 14))
-                            .foregroundStyle(keyStatus == .valid ? .green : .red)
-                            .padding(.horizontal, 20)
+                        if !statusMessage.isEmpty {
+                            Text(statusMessage)
+                                .font(.system(size: 14))
+                                .foregroundStyle(keyStatus == .valid ? .green : .red)
+                                .padding(.horizontal, 20)
+                        }
                     }
+                } else {
+                    List {
+                        ForEach(notesList) { note in
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(note.content)
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundStyle(.white)
+                                    .lineLimit(2)
+                                Text(note.date, style: .date)
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(.gray)
+                            }
+                            .listRowBackground(Color(white: 0.08))
+                        }
+                        .onDelete(perform: deleteNote)
+                    }
+                    .scrollContentBackground(.hidden)
                 }
 
                 Spacer(minLength: 0)
@@ -83,6 +109,9 @@ struct LicenseActivationView: View {
         .animation(.easeInOut(duration: 0.18), value: isFocused)
         .sheet(isPresented: $isWritingNote) {
             noteEditorView
+        }
+        .onAppear {
+            loadNotes()
         }
     }
 
@@ -146,6 +175,7 @@ struct LicenseActivationView: View {
             .overlay(Capsule().stroke(strokeColor, lineWidth: 1))
 
             Button {
+                noteContent = ""
                 isWritingNote = true
             } label: {
                 Image(systemName: "square.and.pencil")
@@ -160,7 +190,7 @@ struct LicenseActivationView: View {
         .padding(.bottom, 13)
     }
 
-    // MARK: - Note Editor View
+    // MARK: - Note Editor View (شاشة الكتابة وتنسيق الأزرار تماماً مثل الصورة)
 
     private var noteEditorView: some View {
         NavigationView {
@@ -168,20 +198,37 @@ struct LicenseActivationView: View {
                 Color.black.ignoresSafeArea()
 
                 VStack(alignment: .leading, spacing: 0) {
-                    // شريط أدوات التنسيق العلوي فوق لوحة المفاتيح (Aa, B, I, U, القوائم)
+                    // أزرار التنسيق العلوية فوق لوحة المفاتيح (B, I, U, S المطابقة للصورة)
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 18) {
-                            Button("Aa") {}.font(.system(size: 16, weight: .bold))
-                            Image(systemName: "list.bullet")
-                            Image(systemName: "tablecells")
-                            Image(systemName: "paperclip")
-                            Image(systemName: "pencil.tip.crop.circle")
-                            Image(systemName: "link")
-                            Image(systemName: "text.alignleft")
+                        HStack(spacing: 22) {
+                            Button(action: { appendFormatting(tag: "**") }) {
+                                Text("B").font(.system(size: 17, weight: .bold))
+                            }
+                            Button(action: { appendFormatting(tag: "*") }) {
+                                Text("I").font(.system(size: 17, weight: .italic))
+                            }
+                            Button(action: { appendFormatting(tag: "~~") }) {
+                                Text("U̲").font(.system(size: 17, weight: .semibold))
+                            }
+                            Button(action: { appendFormatting(tag: "---") }) {
+                                Text("S̶").font(.system(size: 17, weight: .medium))
+                            }
+                            Button(action: {}) {
+                                Image(systemName: "pencil.tip.crop.circle")
+                                    .font(.system(size: 17))
+                            }
+                            Button(action: {}) {
+                                Image(systemName: "link")
+                                    .font(.system(size: 17))
+                            }
+                            Button(action: {}) {
+                                Image(systemName: "text.alignleft")
+                                    .font(.system(size: 17))
+                            }
                         }
                         .foregroundStyle(.white)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 10)
                     }
                     .background(Color(white: 0.12))
 
@@ -220,8 +267,9 @@ struct LicenseActivationView: View {
                             Image(systemName: "ellipsis.circle")
                                 .foregroundStyle(.white)
                         }
+                        // زر الحفظ (علامة الصح الصفراء مثل الصورة)
                         Button {
-                            isWritingNote = false
+                            saveCurrentNote()
                         } label: {
                             Image(systemName: "checkmark")
                                 .font(.system(size: 14, weight: .bold))
@@ -235,7 +283,38 @@ struct LicenseActivationView: View {
         }
     }
 
-    // MARK: - Actions
+    // MARK: - Actions & Persistence
+
+    private func appendFormatting(tag: String) {
+        noteContent += tag
+    }
+
+    private func saveCurrentNote() {
+        let trimmed = noteContent.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty {
+            let newNote = NoteItem(content: trimmed, date: Date())
+            notesList.insert(newNote, at: 0)
+            saveNotesToStorage()
+        }
+        isWritingNote = false
+    }
+
+    private func deleteNote(at offsets: IndexSet) {
+        notesList.remove(atOffsets: offsets)
+        saveNotesToStorage()
+    }
+
+    private func saveNotesToStorage() {
+        if let encoded = try? JSONEncoder().encode(notesList) {
+            savedNotesData = encoded
+        }
+    }
+
+    private func loadNotes() {
+        if let decoded = try? JSONDecoder().decode([NoteItem].self, from: savedNotesData) {
+            notesList = decoded
+        }
+    }
 
     private func resetState() {
         key = ""
