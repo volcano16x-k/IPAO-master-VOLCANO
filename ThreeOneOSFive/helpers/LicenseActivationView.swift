@@ -14,7 +14,7 @@ struct LicenseActivationView: View {
     @State private var isWaitingForAI = false
     @FocusState private var isFocused: Bool
 
-    private let apiKey = "AQ.Ab8RN6Jq6a-wjL-8wNNq12IijvpsTkIE6svu3UG94_GqwLRVBw"
+    private let apiKey = "AQ.Ab8RN6J0FUDlr0GkD6ZJ4q5oopTrSTpVIvbpUxEOBUrLOVQGYA"
 
     private let blue = Color(red: 0.10, green: 0.56, blue: 1.0)
     private let chipFill = Color(white: 0.11)
