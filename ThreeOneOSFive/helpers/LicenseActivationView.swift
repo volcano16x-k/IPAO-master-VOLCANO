@@ -9,6 +9,11 @@ struct LicenseActivationView: View {
     @State private var keyStatus: ActivationKeyStatus = .empty
     @State private var statusMessage = ""
     @FocusState private var isFocused: Bool
+    
+    // حالة فتح شاشة كتابة الملاحظات الجديدة
+    @State private var isWritingNote = false
+    @State private var noteContent = ""
+    @FocusState private var isNoteFocused: Bool
 
     enum ActivationKeyStatus {
         case empty     // دائرة فارغة (لم يُدخل مفتاح)
@@ -34,7 +39,7 @@ struct LicenseActivationView: View {
 
                 Spacer(minLength: 0)
 
-                // الواجهة دائمًا ثابتة في المنتصف (الاقتراحات فقط دون الانتقال لأي صفحة شاشة أخرى)
+                // الواجهة دائمًا ثابتة في المنتصف
                 VStack(spacing: 20) {
                     suggestions
 
@@ -48,12 +53,15 @@ struct LicenseActivationView: View {
 
                 Spacer(minLength: 0)
 
-                // INPUT BAR
-                inputBar
+                // BOTTOM BAR
+                bottomBar
             }
         }
         .preferredColorScheme(.dark)
         .animation(.easeInOut(duration: 0.18), value: isFocused)
+        .sheet(isPresented: $isWritingNote) {
+            noteEditorView
+        }
     }
 
     // MARK: - Top Bar
@@ -91,7 +99,7 @@ struct LicenseActivationView: View {
 
             Spacer()
 
-            // يمين: الدائرة العلوية المتغيرة حسب حالة المفتاح دون أي انتقال لشاشات أخرى
+            // يمين: الدائرة العلوية المتغيرة حسب حالة المفتاح
             ZStack {
                 Circle()
                     .fill(chipFill)
@@ -164,64 +172,102 @@ struct LicenseActivationView: View {
         }
     }
 
-    // MARK: - Input Bar
+    // MARK: - Bottom Bar
 
-    private var inputBar: some View {
-        HStack(spacing: 10) {
-            Button {} label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 20, weight: .medium))
+    private var bottomBar: some View {
+        HStack(spacing: 12) {
+            HStack(spacing: 10) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.6))
+
+                TextField("Recherche", text: $key)
+                    .focused($isFocused)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .font(.system(size: 17))
                     .foregroundStyle(.white)
-                    .frame(width: 34, height: 34)
+                    .submitLabel(.search)
+                    .onSubmit {
+                        handleKeyInput()
+                    }
+
+                Image(systemName: "mic")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.6))
             }
+            .padding(.horizontal, 14)
+            .frame(height: 47)
+            .background(chipFill, in: Capsule())
+            .overlay(Capsule().stroke(strokeColor, lineWidth: 1))
 
-            TextField("Demander à Nots", text: $key)
-                .focused($isFocused)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .font(.system(size: 17))
-                .foregroundStyle(.white)
-                .submitLabel(.send)
-                .onSubmit {
-                    handleKeyInput()
-                }
+            Button {
+                isWritingNote = true
+            } label: {
+                Image(systemName: "square.and.pencil")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 47, height: 47)
+                    .background(chipFill, in: Circle())
+                    .overlay(Circle().stroke(strokeColor, lineWidth: 1))
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 13)
+    }
 
-            if key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                Button {} label: {
-                    Image(systemName: "mic")
-                        .font(.system(size: 19, weight: .medium))
+    // MARK: - Note Editor View
+
+    private var noteEditorView: some View {
+        NavigationView {
+            ZStack {
+                Color.black.ignoresSafeArea()
+
+                VStack(alignment: .leading, spacing: 0) {
+                    TextEditor(text: $noteContent)
+                        .focused($isNoteFocused)
+                        .scrollContentBackground(.hidden)
+                        .background(Color.black)
                         .foregroundStyle(.white)
-                        .frame(width: 32, height: 32)
-                }
-            } else {
-                Button {
-                    handleKeyInput()
-                } label: {
-                    Image(systemName: "arrow.up")
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(.white)
-                        .frame(width: 34, height: 34)
-                        .background(blue, in: Circle())
+                        .font(.system(size: 18))
+                        .padding(16)
                 }
             }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button {
+                        isWritingNote = false
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundStyle(.white)
+                    }
+                }
 
-            if key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                Button {} label: {
-                    Image(systemName: "waveform")
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(.white)
-                        .frame(width: 34, height: 34)
-                        .background(blue, in: Circle())
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    HStack(spacing: 16) {
+                        Button {} label: {
+                            Image(systemName: "square.and.arrow.up")
+                                .foregroundStyle(.white)
+                        }
+                        Button {} label: {
+                            Image(systemName: "ellipsis.circle")
+                                .foregroundStyle(.white)
+                        }
+                        Button {
+                            isWritingNote = false
+                        } label: {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundStyle(.black)
+                                .frame(width: 30, height: 30)
+                                .background(Color.yellow, in: Circle())
+                        }
+                    }
                 }
             }
         }
-        .padding(.leading, 14)
-        .padding(.trailing, 9)
-        .frame(height: 47)
-        .background(chipFill, in: Capsule())
-        .overlay(Capsule().stroke(strokeColor, lineWidth: 1))
-        .padding(.horizontal, 24)
-        .padding(.bottom, 13)
     }
 
     // MARK: - Actions
@@ -236,7 +282,6 @@ struct LicenseActivationView: View {
         let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
-        // التحقق من مفتاح التفعيل (يبدأ بـ VOLC) دون الانتقال لأي شاشة
         if trimmed.uppercased().hasPrefix("VOLC") {
             if trimmed.count >= 8 {
                 keyStatus = .valid
