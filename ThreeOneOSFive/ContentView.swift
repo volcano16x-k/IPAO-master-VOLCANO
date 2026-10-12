@@ -4,6 +4,22 @@ import AVFoundation
 import Network
 
 struct ContentView: View {
+    @StateObject private var licenseManager = LicenseManager()
+
+    var body: some View {
+        Group {
+            if licenseManager.isActive {
+                MainAppView(licenseManager: licenseManager)
+            } else {
+                LicenseActivationView(manager: licenseManager)
+            }
+        }
+    }
+}
+
+// واجهة التطبيق الأساسية (التي تحتوي على أزرار الباتشات والتحكم الكامل)
+struct MainAppView: View {
+    @ObservedObject var licenseManager: LicenseManager
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var appState: AppState
     @State private var showSettings = false
@@ -21,7 +37,7 @@ struct ContentView: View {
     @State private var aimNeckAntenaEnabled = false
     @State private var panelEnabled = false
     @State private var aimHeadAntenaEnabled = false
-    @State private var hsPescocoEnabled = false // تم استخدام هذا المتغير لـ HS PESCOÇO بدلاً من OBB
+    @State private var hsPescocoEnabled = false
 
     // ملفات الباتشات
     @AppStorage("regditFile") private var regditFile = "VOLCANO File (6).3105"
@@ -32,7 +48,7 @@ struct ContentView: View {
     @AppStorage("aimNeckAntenaFile") private var aimNeckAntenaFile = "VOLCANO File (11).3105"
     @AppStorage("panelFile") private var panelFile = "VOLCANO File (12).3105"
     @AppStorage("aimHeadAntenaFile") private var aimHeadAntenaFile = "VOLCANO File (13).3105"
-    @AppStorage("hsPescocoFile") private var hsPescocoFile = "VOLCANO File (14).3105" // تم تحويل ملف OBB القديم ليكون خاصاً بـ HS PESCOÇO (الملف 14 أو حسب رغبتك)
+    @AppStorage("hsPescocoFile") private var hsPescocoFile = "VOLCANO File (14).3105"
 
     // حالات القفل للأزرار
     @AppStorage("lockRegditButton") private var lockRegditButton = false
@@ -224,6 +240,19 @@ struct ContentView: View {
             }
 
             Spacer()
+
+            // زر إعدادات التطبيق أو تسجيل الخروج من الترخيص
+            Button {
+                licenseManager.deactivate()
+            } label: {
+                Image(systemName: "lock.slash.fill")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(.red)
+                    .frame(width: 48, height: 48)
+                    .background(Color.black.opacity(0.38), in: Circle())
+                    .overlay(Circle().stroke(Color.red.opacity(0.42), lineWidth: 1))
+            }
+            .buttonStyle(.plain)
 
             Button { showSettings = true } label: {
                 Image(systemName: "gearshape.fill")
@@ -998,7 +1027,7 @@ struct AnimatedHyperBackdrop: View {
     }
 }
 
-// MARK: - Background keep-alive (online audio stream + silent fallback)
+// MARK: - Background keep-alive
 final class BackgroundKeeper {
     static let shared = BackgroundKeeper()
 
