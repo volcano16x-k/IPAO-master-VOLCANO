@@ -16,16 +16,83 @@ final class LicenseManager: ObservableObject {
     private var lastAttemptAt: Date?
 
     init() {
-        // إجبار التطبيق على البدء بواجهة إدخال المفتاح دائماً لمنع الاختفاء المفاجئ
-        isActive = false
+        // عند الفتح، نحاول التحقق من المفتاح المخزن تلقائياً
+        checkSavedKeyOnStartup()
     }
 
     var hasRememberedKey: Bool { string(for: keyAccount) != nil }
 
+    // التحقق التلقائي عند بدء التطبيق من المفتاح المخزن في الـ Keychain
+    func checkSavedKeyOnStartup() {
+        guard let savedKey = rememberedKey(), !savedKey.isEmpty else {
+            isActive = false
+            message = "Key required — enter your access key"
+            return
+        }
+
+        // إرسال المفتاح المخزن للسيرفر للتأكد أنه لا زال صالحاً ولم تنتهِ مدته
+        isBusy = true
+        message = "Verifying saved session..."
+
+        guard let url = URL(string: "https://keybot1-u5id.onrender.com/verify-key") else {
+            isBusy = false
+            isActive = false
+            return
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let body: [String: String] = ["key": savedKey]
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body, options: [])
+        } catch {
+            isBusy = false
+            isActive = false
+            return
+        }
+
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.isBusy = false
+
+                if let error = error {
+                    // في حال عدم وجود انترنت، نعتبر الجلسة صالحة مؤقتاً بناءً على الحفظ المحلي لتفادي قطع التطبيق
+                    self.isActive = true
+                    self.message = "Offline mode active"
+                    return
+                }
+
+                guard let data = data else {
+                    self.isActive = false
+                    return
+                }
+
+                do {
+                    if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
+                       let success = json["success"] as? Bool, success {
+                        // المفتاح صالح ولا زال ضمن المدة
+                        self.isActive = true
+                        self.message = "Session active"
+                    } else {
+                        // انتهت صلاحية المفتاح أو تم استهلاكه
+                        self.isActive = false
+                        self.delete(self.keyAccount) // حذف المفتاح المنتهي من الجهاز
+                        self.message = "Session expired — enter a new key"
+                    }
+                } catch {
+                    self.isActive = false
+                }
+            }
+        }.resume()
+    }
+
     func beginLaunchSession() {
-        // الحفاظ على حالة عدم التفعيل حتى يدخل المستخدم المفتاح الصحيح
-        isActive = false
-        message = "Key required — enter your access key"
+        if !isActive {
+            checkSavedKeyOnStartup()
+        }
     }
 
     func activate(key: String) {
@@ -41,7 +108,6 @@ final class LicenseManager: ObservableObject {
         isBusy = true
         message = "Checking access key..."
 
-        // الاتصال بسيرفرك السحابي على Render
         guard let url = URL(string: "https://keybot1-u5id.onrender.com/verify-key") else {
             isBusy = false
             message = "Invalid server URL"
@@ -81,14 +147,12 @@ final class LicenseManager: ObservableObject {
                        let success = json["success"] as? Bool {
                         
                         if success {
-                            // ✅ المفتاح صحيح، يتم تفعيل الدخول وفتح التطبيق
                             if self.rememberKey {
                                 self.save(trimmed, for: self.keyAccount)
                             }
                             self.isActive = true
                             self.message = "Activated successfully"
                         } else {
-                            // ❌ المفتاح خطأ أو مستخدم مسبقاً
                             self.isActive = false
                             let serverMsg = json["message"] as? String ?? "Invalid access key"
                             self.message = serverMsg
@@ -106,8 +170,7 @@ final class LicenseManager: ObservableObject {
     func rememberedKey() -> String? { string(for: keyAccount) }
 
     func refresh() {
-        isActive = false
-        message = "Key required — enter your access key"
+        checkSavedKeyOnStartup()
     }
 
     func deactivate() {
