@@ -1,217 +1,561 @@
+import SwiftUI
 import Combine
 import Foundation
 import Security
 
 @MainActor
 final class LicenseManager: ObservableObject {
-    @Published private(set) var expirationDate: Date?
-    @Published private(set) var isActive = false
-    @Published private(set) var isBusy = false
+
+    // MARK: - Published State
+
+    @Published private(set) var isActive: Bool = false
+    @Published private(set) var isBusy: Bool = false
     @Published private(set) var message: String?
-    @Published private(set) var contactOwner: String?
-    @Published var rememberKey = true
+
+    @Published var rememberKey: Bool = true
+
+    // MARK: - Keychain
 
     private let service = "com.VOLCANO.external-ios.activation"
     private let keyAccount = "license-key"
+
     private var lastAttemptAt: Date?
 
+    // MARK: - Server
+
+    private let verifyURL =
+        "https://keybot1-u5id.onrender.com/verify-key"
+
+    // MARK: - Init
+
     init() {
-        // عند الفتح، نحاول التحقق من المفتاح المخزن تلقائياً
         checkSavedKeyOnStartup()
     }
 
-    var hasRememberedKey: Bool { string(for: keyAccount) != nil }
+    // MARK: - Public State
 
-    // التحقق التلقائي عند بدء التطبيق من المفتاح المخزن في الـ Keychain
+    var hasRememberedKey: Bool {
+        rememberedKey() != nil
+    }
+
+    /// حالة الدائرة العلوية
+    var circleState: CircleState {
+        if isBusy {
+            return .checking
+        }
+
+        if isActive {
+            return .valid
+        }
+
+        return .invalid
+    }
+
+    enum CircleState {
+        case valid
+        case invalid
+        case checking
+    }
+
+    // MARK: - Startup
+
     func checkSavedKeyOnStartup() {
-        guard let savedKey = rememberedKey(), !savedKey.isEmpty else {
+
+        guard let savedKey = rememberedKey(),
+              !savedKey.isEmpty else {
+
             isActive = false
-            message = "Key required — enter your access key"
+            message = nil
             return
         }
 
-        // إرسال المفتاح المخزن للسيرفر للتأكد أنه لا زال صالحاً ولم تنتهِ مدته
-        isBusy = true
-        message = "Verifying saved session..."
-
-        guard let url = URL(string: "https://keybot1-u5id.onrender.com/verify-key") else {
-            isBusy = false
-            isActive = false
-            return
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-        let body: [String: String] = ["key": savedKey]
-        do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: body, options: [])
-        } catch {
-            isBusy = false
-            isActive = false
-            return
-        }
-
-        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
-            DispatchQueue.main.async {
-                guard let self else { return }
-                self.isBusy = false
-
-                if let error = error {
-                    // في حال عدم وجود انترنت، نعتبر الجلسة صالحة مؤقتاً بناءً على الحفظ المحلي لتفادي قطع التطبيق
-                    self.isActive = true
-                    self.message = "Offline mode active"
-                    return
-                }
-
-                guard let data = data else {
-                    self.isActive = false
-                    return
-                }
-
-                do {
-                    if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
-                       let success = json["success"] as? Bool, success {
-                        // المفتاح صالح ولا زال ضمن المدة
-                        self.isActive = true
-                        self.message = "Session active"
-                    } else {
-                        // انتهت صلاحية المفتاح أو تم استهلاكه
-                        self.isActive = false
-                        self.delete(self.keyAccount) // حذف المفتاح المنتهي من الجهاز
-                        self.message = "Session expired — enter a new key"
-                    }
-                } catch {
-                    self.isActive = false
-                }
-            }
-        }.resume()
+        verify(key: savedKey, saveKey: false)
     }
 
-    func beginLaunchSession() {
-        if !isActive {
-            checkSavedKeyOnStartup()
-        }
-    }
+    // MARK: - Activate
 
     func activate(key: String) {
-        let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, !isBusy else { return }
-        
-        if let lastAttemptAt, Date().timeIntervalSince(lastAttemptAt) < 1 {
-            message = "Please wait a moment before trying again"
-            return
-        }
-        
-        lastAttemptAt = Date()
-        isBusy = true
-        message = "Checking access key..."
 
-        guard let url = URL(string: "https://keybot1-u5id.onrender.com/verify-key") else {
-            isBusy = false
-            message = "Invalid server URL"
+        let trimmed = key.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
+
+        guard !trimmed.isEmpty else {
+            isActive = false
+            message = "Enter your access key"
             return
         }
+
+        guard !isBusy else {
+            return
+        }
+
+        if let lastAttemptAt,
+           Date().timeIntervalSince(lastAttemptAt) < 1 {
+
+            message = "Please wait a moment"
+            return
+        }
+
+        lastAttemptAt = Date()
+
+        verify(
+            key: trimmed,
+            saveKey: rememberKey
+        )
+    }
+
+    // MARK: - Verify
+
+    private func verify(
+        key: String,
+        saveKey: Bool
+    ) {
+
+        guard let url = URL(string: verifyURL) else {
+            isActive = false
+            message = nil
+            return
+        }
+
+        isBusy = true
 
         var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        let body: [String: String] = ["key": trimmed]
+        request.httpMethod = "POST"
+
+        request.timeoutInterval = 15
+
+        request.setValue(
+            "application/json",
+            forHTTPHeaderField: "Content-Type"
+        )
+
+        let body: [String: String] = [
+            "key": key
+        ]
+
         do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: body, options: [])
+
+            request.httpBody = try JSONSerialization.data(
+                withJSONObject: body,
+                options: []
+            )
+
         } catch {
+
             isBusy = false
-            message = "Failed to prepare request data"
+            isActive = false
+            message = nil
             return
         }
 
-        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
-            DispatchQueue.main.async {
-                guard let self else { return }
-                self.isBusy = false
+        URLSession.shared.dataTask(
+            with: request
+        ) { [weak self] data, response, error in
 
-                if let error = error {
-                    self.message = "Connection error: \(error.localizedDescription)"
+            Task { @MainActor in
+
+                guard let self else {
                     return
                 }
 
-                guard let data = data else {
-                    self.message = "No response from server"
+                self.isBusy = false
+
+                // لا نعتبر المفتاح صالحاً عند انقطاع الاتصال
+                if error != nil {
+                    self.isActive = false
+                    self.message = nil
+                    return
+                }
+
+                guard
+                    let httpResponse = response as? HTTPURLResponse,
+                    (200...299).contains(httpResponse.statusCode),
+                    let data
+                else {
+                    self.isActive = false
+                    self.message = nil
                     return
                 }
 
                 do {
-                    if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
-                       let success = json["success"] as? Bool {
-                        
-                        if success {
-                            if self.rememberKey {
-                                self.save(trimmed, for: self.keyAccount)
-                            }
-                            self.isActive = true
-                            self.message = "Activated successfully"
-                        } else {
-                            self.isActive = false
-                            let serverMsg = json["message"] as? String ?? "Invalid access key"
-                            self.message = serverMsg
-                        }
-                    } else {
-                        self.message = "Unexpected server response"
+
+                    guard
+                        let json = try JSONSerialization.jsonObject(
+                            with: data,
+                            options: []
+                        ) as? [String: Any]
+                    else {
+                        self.isActive = false
+                        self.message = nil
+                        return
                     }
+
+                    let success =
+                        json["success"] as? Bool ?? false
+
+                    if success {
+
+                        self.isActive = true
+                        self.message = nil
+
+                        if saveKey {
+                            self.save(
+                                key,
+                                for: self.keyAccount
+                            )
+                        }
+
+                    } else {
+
+                        self.isActive = false
+                        self.message = nil
+
+                        // حذف المفتاح إذا رفضه السيرفر
+                        self.delete(self.keyAccount)
+                    }
+
                 } catch {
-                    self.message = "Failed to parse server response"
+
+                    self.isActive = false
+                    self.message = nil
                 }
             }
+
         }.resume()
     }
 
-    func rememberedKey() -> String? { string(for: keyAccount) }
+    // MARK: - Refresh
 
     func refresh() {
         checkSavedKeyOnStartup()
     }
 
+    // MARK: - Deactivate
+
     func deactivate() {
+
         delete(keyAccount)
+
         isActive = false
-        message = "Activation removed from this device"
+        isBusy = false
+        message = nil
     }
 
-    private func string(for account: String) -> String? {
+    // MARK: - Keychain Read
+
+    func rememberedKey() -> String? {
+
         let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
+
+            kSecClass as String:
+                kSecClassGenericPassword,
+
+            kSecAttrService as String:
+                service,
+
+            kSecAttrAccount as String:
+                keyAccount,
+
+            kSecReturnData as String:
+                true,
+
+            kSecMatchLimit as String:
+                kSecMatchLimitOne
         ]
+
         var result: CFTypeRef?
-        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
-              let data = result as? Data else { return nil }
-        return String(data: data, encoding: .utf8)
+
+        let status = SecItemCopyMatching(
+            query as CFDictionary,
+            &result
+        )
+
+        guard
+            status == errSecSuccess,
+            let data = result as? Data
+        else {
+            return nil
+        }
+
+        return String(
+            data: data,
+            encoding: .utf8
+        )
     }
 
-    private func save(_ value: String, for account: String) {
+    // MARK: - Keychain Save
+
+    private func save(
+        _ value: String,
+        for account: String
+    ) {
+
         let base: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account
+
+            kSecClass as String:
+                kSecClassGenericPassword,
+
+            kSecAttrService as String:
+                service,
+
+            kSecAttrAccount as String:
+                account
         ]
-        SecItemDelete(base as CFDictionary)
+
+        SecItemDelete(
+            base as CFDictionary
+        )
+
         var item = base
-        item[kSecValueData as String] = Data(value.utf8)
-        item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-        SecItemAdd(item as CFDictionary, nil)
+
+        item[kSecValueData as String] =
+            Data(value.utf8)
+
+        item[kSecAttrAccessible as String] =
+            kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+
+        SecItemAdd(
+            item as CFDictionary,
+            nil
+        )
     }
 
-    private func delete(_ account: String) {
+    // MARK: - Keychain Delete
+
+    private func delete(
+        _ account: String
+    ) {
+
         let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account
+
+            kSecClass as String:
+                kSecClassGenericPassword,
+
+            kSecAttrService as String:
+                service,
+
+            kSecAttrAccount as String:
+                account
         ]
-        SecItemDelete(query as CFDictionary)
+
+        SecItemDelete(
+            query as CFDictionary
+        )
+    }
+}
+
+
+// MARK: - Top Circle
+
+struct LicenseStatusCircle: View {
+
+    let state: LicenseManager.CircleState
+
+    var body: some View {
+
+        ZStack {
+
+            Circle()
+                .fill(
+                    Color(
+                        red: 0.10,
+                        green: 0.10,
+                        blue: 0.10
+                    )
+                )
+
+            Circle()
+                .stroke(
+                    Color.white.opacity(0.08),
+                    lineWidth: 1
+                )
+
+            switch state {
+
+            case .valid:
+
+                // Key صالح:
+                // دائرة فارغة
+                EmptyView()
+
+            case .invalid:
+
+                // Key غير صالح:
+                // X داخل الدائرة
+                XShape()
+                    .stroke(
+                        Color.white,
+                        style: StrokeStyle(
+                            lineWidth: 4,
+                            lineCap: .round,
+                            lineJoin: .round
+                        )
+                    )
+                    .padding(18)
+
+            case .checking:
+
+                ProgressView()
+                    .progressViewStyle(
+                        CircularProgressViewStyle(
+                            tint: .white
+                        )
+                    )
+            }
+        }
+        .frame(
+            width: 84,
+            height: 84
+        )
+    }
+}
+
+
+// MARK: - X Shape
+
+struct XShape: Shape {
+
+    func path(
+        in rect: CGRect
+    ) -> Path {
+
+        var path = Path()
+
+        path.move(
+            to: CGPoint(
+                x: rect.minX,
+                y: rect.minY
+            )
+        )
+
+        path.addLine(
+            to: CGPoint(
+                x: rect.maxX,
+                y: rect.maxY
+            )
+        )
+
+        path.move(
+            to: CGPoint(
+                x: rect.maxX,
+                y: rect.minY
+            )
+        )
+
+        path.addLine(
+            to: CGPoint(
+                x: rect.minX,
+                y: rect.maxY
+            )
+        )
+
+        return path
+    }
+}
+
+
+// MARK: - Example Top Bar
+
+struct VolcanoTopBar: View {
+
+    @ObservedObject var license: LicenseManager
+
+    var body: some View {
+
+        HStack {
+
+            // زر اليسار بشلطتين
+            MenuTwoLinesButton()
+
+            Spacer()
+
+            // Mettre à niveau
+            HStack(spacing: 12) {
+
+                Text("✦")
+                    .font(.system(size: 30))
+                    .foregroundColor(.blue)
+
+                Text("Mettre à niveau")
+                    .font(
+                        .system(
+                            size: 24,
+                            weight: .bold
+                        )
+                    )
+                    .foregroundColor(.blue)
+            }
+            .padding(.horizontal, 28)
+            .padding(.vertical, 15)
+            .background(
+                Capsule()
+                    .fill(
+                        Color(
+                            red: 0.10,
+                            green: 0.10,
+                            blue: 0.10
+                        )
+                    )
+            )
+
+            Spacer()
+
+            // دائرة حالة الـKey
+            LicenseStatusCircle(
+                state: license.circleState
+            )
+        }
+        .padding(.horizontal, 40)
+        .padding(.top, 10)
+    }
+}
+
+
+// MARK: - Left Button
+
+struct MenuTwoLinesButton: View {
+
+    var body: some View {
+
+        ZStack {
+
+            Circle()
+                .fill(
+                    Color(
+                        red: 0.10,
+                        green: 0.10,
+                        blue: 0.10
+                    )
+                )
+
+            Circle()
+                .stroke(
+                    Color.white.opacity(0.08),
+                    lineWidth: 1
+                )
+
+            VStack(spacing: 9) {
+
+                Capsule()
+                    .fill(Color.white)
+                    .frame(
+                        width: 40,
+                        height: 4
+                    )
+
+                Capsule()
+                    .fill(Color.white)
+                    .frame(
+                        width: 40,
+                        height: 4
+                    )
+            }
+        }
+        .frame(
+            width: 84,
+            height: 84
+        )
     }
 }
