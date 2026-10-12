@@ -34,6 +34,7 @@ struct LicenseActivationView: View {
 
             VStack(spacing: 0) {
 
+                // TOP BAR
                 topBar
 
                 if isAIActive {
@@ -43,16 +44,71 @@ struct LicenseActivationView: View {
                     suggestions
                 }
 
-                Spacer(minLength: 0)
-
-                inputArea
+                // INPUT
+                inputBar
             }
         }
         .preferredColorScheme(.dark)
-        .animation(
-            .easeInOut(duration: 0.20),
-            value: isFocused
-        )
+        .animation(.easeInOut(duration: 0.2), value: isFocused)
+    }
+
+    // MARK: - Chat
+
+    private var chatView: some View {
+        ScrollViewReader { proxy in
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+
+                    ForEach(chatHistory) { chat in
+
+                        let isUser = chat.sender == "user"
+
+                        Text(chat.text)
+                            .font(.system(size: 16))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(
+                                isUser
+                                ? chipFill
+                                : Color.clear,
+                                in: RoundedRectangle(
+                                    cornerRadius: 20,
+                                    style: .continuous
+                                )
+                            )
+                            .frame(
+                                maxWidth: .infinity,
+                                alignment: isUser
+                                ? .trailing
+                                : .leading
+                            )
+                            .id(chat.id)
+                    }
+
+                    if isWaitingForAI {
+                        ProgressView()
+                            .tint(.white)
+                            .id("loading")
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
+            }
+            .onChange(of: chatHistory.count) { _ in
+
+                if let last = chatHistory.last {
+
+                    withAnimation {
+                        proxy.scrollTo(
+                            last.id,
+                            anchor: .bottom
+                        )
+                    }
+                }
+            }
+        }
     }
 
     // MARK: - Top Bar
@@ -60,17 +116,18 @@ struct LicenseActivationView: View {
     private var topBar: some View {
         HStack(spacing: 12) {
 
-            // MENU
+            // LEFT MENU - شطرتان
             Button(action: resetChat) {
+
                 MenuTwoLinesShape()
                     .stroke(
                         .white,
                         style: StrokeStyle(
-                            lineWidth: 2.4,
+                            lineWidth: 2.8,
                             lineCap: .round
                         )
                     )
-                    .frame(width: 20, height: 10)
+                    .frame(width: 28, height: 18)
                     .frame(width: 42, height: 42)
                     .background(
                         chipFill,
@@ -87,6 +144,7 @@ struct LicenseActivationView: View {
 
             // METTRE À NIVEAU
             Button(action: {}) {
+
                 HStack(spacing: 8) {
 
                     FourPointStarShape()
@@ -96,7 +154,6 @@ struct LicenseActivationView: View {
                             height: 20
                         )
 
-                    // لم يتم تصغير هذا النص
                     Text("Mettre à niveau")
                         .font(
                             .system(
@@ -123,9 +180,10 @@ struct LicenseActivationView: View {
 
             Spacer()
 
-            // CHAT ICON
+            // CHATGPT CIRCLE
             Button(action: resetChat) {
-                ChatRingShape()
+
+                ChatGPTLogoShape()
                     .stroke(
                         .white,
                         style: StrokeStyle(
@@ -135,8 +193,8 @@ struct LicenseActivationView: View {
                         )
                     )
                     .frame(
-                        width: 22,
-                        height: 22
+                        width: 25,
+                        height: 25
                     )
                     .frame(
                         width: 42,
@@ -159,84 +217,6 @@ struct LicenseActivationView: View {
         .padding(.top, 4)
     }
 
-    // MARK: - Chat
-
-    private var chatView: some View {
-        ScrollViewReader { proxy in
-
-            ScrollView {
-
-                VStack(
-                    alignment: .leading,
-                    spacing: 16
-                ) {
-
-                    ForEach(chatHistory) { chat in
-
-                        let isUser =
-                            chat.sender == "user"
-
-                        Text(chat.text)
-                            .font(
-                                .system(size: 16)
-                            )
-                            .foregroundStyle(.white)
-                            .padding(
-                                .horizontal,
-                                14
-                            )
-                            .padding(
-                                .vertical,
-                                10
-                            )
-                            .background(
-                                isUser
-                                    ? chipFill
-                                    : Color.clear,
-                                in:
-                                    RoundedRectangle(
-                                        cornerRadius: 20,
-                                        style: .continuous
-                                    )
-                            )
-                            .frame(
-                                maxWidth: .infinity,
-                                alignment:
-                                    isUser
-                                    ? .trailing
-                                    : .leading
-                            )
-                            .id(chat.id)
-                    }
-
-                    if isWaitingForAI {
-
-                        ProgressView()
-                            .tint(.white)
-                            .id("loading")
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 16)
-            }
-            .onChange(
-                of: chatHistory.count
-            ) { _ in
-
-                if let last =
-                    chatHistory.last {
-
-                    withAnimation {
-                        proxy.scrollTo(
-                            last.id,
-                            anchor: .bottom
-                        )
-                    }
-                }
-            }
-        }
-    }
-
     // MARK: - Suggestions
 
     private var suggestions: some View {
@@ -247,27 +227,21 @@ struct LicenseActivationView: View {
         ) {
 
             suggestionRow(
-                title:
-                    "Créer une image ou un sticker"
+                title: "Créer une image ou un sticker"
             ) {
 
-                Image(
-                    systemName: "photo"
-                )
-                .font(
-                    .system(
-                        size: 18,
-                        weight: .medium
+                Image(systemName: "photo")
+                    .font(
+                        .system(
+                            size: 18,
+                            weight: .medium
+                        )
                     )
-                )
-                .foregroundStyle(
-                    textGray
-                )
+                    .foregroundStyle(textGray)
             }
 
             suggestionRow(
-                title:
-                    "Écrire ou modifier"
+                title: "Écrire ou modifier"
             ) {
 
                 PencilShape()
@@ -286,8 +260,7 @@ struct LicenseActivationView: View {
             }
 
             suggestionRow(
-                title:
-                    "Rechercher sur le Web"
+                title: "Rechercher sur le Web"
             ) {
 
                 GlobeShape()
@@ -326,85 +299,15 @@ struct LicenseActivationView: View {
                     height: 25
                 )
 
-            // التصغير هنا فقط
             Text(title)
                 .font(
                     .system(
-                        size: 15,
+                        size: 16,
                         weight: .regular
                     )
                 )
-                .foregroundStyle(
-                    textGray
-                )
+                .foregroundStyle(textGray)
         }
-    }
-
-    // MARK: - Input Area
-
-    private var inputArea: some View {
-
-        ZStack(alignment: .leading) {
-
-            // السهم يظهر عند الكتابة
-            if !key.isEmpty {
-
-                Button(
-                    action: hideKeyboard
-                ) {
-
-                    ZStack {
-
-                        RoundedRectangle(
-                            cornerRadius: 18,
-                            style: .continuous
-                        )
-                        .fill(
-                            Color(
-                                white: 0.12
-                            )
-                        )
-
-                        ChevronRightShape()
-                            .stroke(
-                                Color.white
-                                    .opacity(0.85),
-                                style: StrokeStyle(
-                                    lineWidth: 3.5,
-                                    lineCap: .round,
-                                    lineJoin: .round
-                                )
-                            )
-                            .frame(
-                                width: 18,
-                                height: 28
-                            )
-                    }
-                    .frame(
-                        width: 48,
-                        height: 96
-                    )
-                }
-                .offset(x: -24)
-                .transition(
-                    .move(
-                        edge: .leading
-                    )
-                    .combined(
-                        with: .opacity
-                    )
-                )
-                .zIndex(2)
-            }
-
-            inputBar
-        }
-        .animation(
-            .easeInOut(
-                duration: 0.18
-            ),
-            value: key.isEmpty
-        )
     }
 
     // MARK: - Input Bar
@@ -416,20 +319,18 @@ struct LicenseActivationView: View {
             // PLUS
             Button(action: {}) {
 
-                Image(
-                    systemName: "plus"
-                )
-                .font(
-                    .system(
-                        size: 20,
-                        weight: .medium
+                Image(systemName: "plus")
+                    .font(
+                        .system(
+                            size: 20,
+                            weight: .medium
+                        )
                     )
-                )
-                .foregroundStyle(.white)
-                .frame(
-                    width: 34,
-                    height: 34
-                )
+                    .foregroundStyle(.white)
+                    .frame(
+                        width: 34,
+                        height: 34
+                    )
             }
 
             // TEXT FIELD
@@ -437,57 +338,65 @@ struct LicenseActivationView: View {
                 "Demander à ChatGPT",
                 text: $key
             )
-            .focused(
-                $isFocused
-            )
-            .textInputAutocapitalization(
-                .never
-            )
+            .focused($isFocused)
+            .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
-            .font(
-                .system(size: 17)
-            )
+            .font(.system(size: 17))
             .foregroundStyle(.white)
             .submitLabel(.send)
             .onSubmit {
                 handleUserInput()
             }
 
-            // MICROPHONE
+            // MICRO
             Button(action: {}) {
 
-                Image(
-                    systemName: "mic"
-                )
-                .font(
-                    .system(
-                        size: 19,
-                        weight: .medium
+                Image(systemName: "mic")
+                    .font(
+                        .system(
+                            size: 19,
+                            weight: .medium
+                        )
                     )
-                )
-                .foregroundStyle(.white)
-                .frame(
-                    width: 32,
-                    height: 32
-                )
+                    .foregroundStyle(.white)
+                    .frame(
+                        width: 32,
+                        height: 32
+                    )
             }
 
-            // SEND
-            Button(
-                action: {
-                    handleUserInput()
-                }
-            ) {
+            // SEND BUTTON
+            Button(action: {
+                handleUserInput()
+            }) {
 
-                Image(
-                    systemName: "waveform"
-                )
-                .font(
-                    .system(
-                        size: 15,
-                        weight: .bold
-                    )
-                )
+                Group {
+
+                    if key.trimmingCharacters(
+                        in: .whitespacesAndNewlines
+                    ).isEmpty {
+
+                        // عندما لا توجد كتابة
+                        Image(systemName: "waveform")
+                            .font(
+                                .system(
+                                    size: 15,
+                                    weight: .bold
+                                )
+                            )
+
+                    } else {
+
+                        // عند كتابة أي حرف → سهم
+                        Image(systemName: "arrow.up")
+                            .font(
+                                .system(
+                                    size: 18,
+                                    weight: .bold
+                                )
+                            )
+                    }
+                }
                 .foregroundStyle(.white)
                 .frame(
                     width: 34,
@@ -517,23 +426,6 @@ struct LicenseActivationView: View {
         .padding(.bottom, 13)
     }
 
-    // MARK: - Keyboard
-
-    private func hideKeyboard() {
-
-        isFocused = false
-
-        UIApplication.shared.sendAction(
-            #selector(
-                UIResponder
-                    .resignFirstResponder
-            ),
-            to: nil,
-            from: nil,
-            for: nil
-        )
-    }
-
     // MARK: - Logic
 
     private func resetChat() {
@@ -541,26 +433,21 @@ struct LicenseActivationView: View {
         isAIActive = false
         chatHistory.removeAll()
         key = ""
-        isFocused = false
     }
 
     private func handleUserInput() {
 
-        let trimmed =
-            key.trimmingCharacters(
-                in: .whitespacesAndNewlines
-            )
+        let trimmed = key.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
 
-        guard
-            !trimmed.isEmpty,
-            !isWaitingForAI
+        guard !trimmed.isEmpty,
+              !isWaitingForAI
         else {
             return
         }
 
-        if trimmed
-            .uppercased()
-            .hasPrefix("VOLC") {
+        if trimmed.uppercased().hasPrefix("VOLC") {
 
             manager.activate(
                 key: trimmed
@@ -583,12 +470,9 @@ struct LicenseActivationView: View {
         }
     }
 
-    // MARK: - Gemini Authentication
+    // MARK: - API
 
-    private enum AuthMode:
-        String,
-        CaseIterable {
-
+    private enum AuthMode: String, CaseIterable {
         case header
         case bearer
         case query
@@ -597,18 +481,14 @@ struct LicenseActivationView: View {
     private func send(
         contents: [[String: Any]],
         mode: AuthMode
-    ) async throws
-        -> (Int, [String: Any]?)
-    {
+    ) async throws -> (Int, [String: Any]?) {
 
         let cleanKey =
             apiKey.trimmingCharacters(
-                in:
-                    .whitespacesAndNewlines
+                in: .whitespacesAndNewlines
             )
 
-        var urlString =
-            endpoint
+        var urlString = endpoint
 
         if mode == .query {
 
@@ -618,30 +498,20 @@ struct LicenseActivationView: View {
                         .urlQueryAllowed
                 ) ?? cleanKey
 
-            urlString +=
-                "?key=\(encoded)"
+            urlString += "?key=\(encoded)"
         }
 
-        guard let url =
-            URL(
-                string: urlString
-            )
-        else {
-            throw URLError(
-                .badURL
-            )
+        guard let url = URL(
+            string: urlString
+        ) else {
+            throw URLError(.badURL)
         }
 
         var request =
-            URLRequest(
-                url: url
-            )
+            URLRequest(url: url)
 
-        request.httpMethod =
-            "POST"
-
-        request.timeoutInterval =
-            60
+        request.httpMethod = "POST"
+        request.timeoutInterval = 60
 
         request.setValue(
             "application/json",
@@ -674,40 +544,32 @@ struct LicenseActivationView: View {
         request.httpBody =
             try JSONSerialization.data(
                 withJSONObject: [
-                    "contents":
-                        contents
+                    "contents": contents
                 ]
             )
 
         let (
             data,
             response
-        ) =
-            try await URLSession.shared.data(
-                for: request
-            )
+        ) = try await URLSession.shared.data(
+            for: request
+        )
 
         let code =
-            (
-                response
-                as? HTTPURLResponse
-            )?.statusCode ?? 0
+            (response as? HTTPURLResponse)?
+                .statusCode ?? 0
 
         let json =
-            try?
-            JSONSerialization
+            try? JSONSerialization
                 .jsonObject(
                     with: data
-                )
-                as? [String: Any]
+                ) as? [String: Any]
 
         return (
             code,
             json
         )
     }
-
-    // MARK: - AI Response
 
     private func fetchAIResponse() {
 
@@ -716,23 +578,23 @@ struct LicenseActivationView: View {
         let contents:
             [[String: Any]] =
             chatHistory
-                .suffix(20)
-                .map {
+            .suffix(20)
+            .map {
 
-                    [
-                        "role":
-                            $0.sender == "user"
-                            ? "user"
-                            : "model",
+                [
+                    "role":
+                        $0.sender == "user"
+                        ? "user"
+                        : "model",
 
-                        "parts": [
-                            [
-                                "text":
-                                    $0.text
-                            ]
+                    "parts": [
+                        [
+                            "text":
+                                $0.text
                         ]
                     ]
-                }
+                ]
+            }
 
         Task {
 
@@ -744,47 +606,37 @@ struct LicenseActivationView: View {
 
             let cleanKey =
                 apiKey.trimmingCharacters(
-                    in:
-                        .whitespacesAndNewlines
+                    in: .whitespacesAndNewlines
                 )
 
             do {
 
-                for mode
-                    in AuthMode.allCases {
+                for mode in AuthMode.allCases {
 
                     let (
                         code,
                         json
-                    ) =
-                        try await send(
-                            contents:
-                                contents,
-                            mode:
-                                mode
-                        )
+                    ) = try await send(
+                        contents: contents,
+                        mode: mode
+                    )
 
                     if code == 200,
 
                        let candidates =
-                        json?["candidates"]
-                            as? [
-                                [String: Any]
-                            ],
+                            json?["candidates"]
+                            as? [[String: Any]],
 
                        let content =
-                        candidates
-                            .first?["content"]
+                            candidates.first?["content"]
                             as? [String: Any],
 
                        let parts =
-                        content["parts"]
-                            as? [
-                                [String: Any]
-                            ],
+                            content["parts"]
+                            as? [[String: Any]],
 
                        let text =
-                        parts.first?["text"]
+                            parts.first?["text"]
                             as? String {
 
                         reply = text
@@ -802,24 +654,20 @@ struct LicenseActivationView: View {
 
                     if let err =
                         json?["error"]
-                            as? [String: Any],
+                        as? [String: Any],
 
                        let m =
                         err["message"]
-                            as? String {
+                        as? String {
 
                         message = m
                     }
 
                     reply =
-                        "v4 | " +
-                        "\(attempts.joined(separator: ", ")) | " +
-                        "طول المفتاح \(cleanKey.count) | " +
-                        "يبدأ بـ \(cleanKey.prefix(3)) | " +
-                        "\(message)"
+                        "v4 | \(attempts.joined(separator: ", ")) | طول المفتاح \(cleanKey.count) | يبدأ بـ \(cleanKey.prefix(3)) | \(message)"
 
                     if code != 401 &&
-                        code != 403 {
+                       code != 403 {
 
                         break
                     }
@@ -828,15 +676,12 @@ struct LicenseActivationView: View {
             } catch {
 
                 reply =
-                    "v4 | خطأ شبكة: " +
-                    "\(error.localizedDescription)"
+                    "v4 | خطأ شبكة: \(error.localizedDescription)"
             }
 
             await MainActor.run {
 
-                finishWithReply(
-                    reply
-                )
+                finishWithReply(reply)
             }
         }
     }
@@ -856,7 +701,7 @@ struct LicenseActivationView: View {
     }
 }
 
-// MARK: - Menu
+// MARK: - LEFT MENU
 
 struct MenuTwoLinesShape: Shape {
 
@@ -866,31 +711,37 @@ struct MenuTwoLinesShape: Shape {
 
         var p = Path()
 
+        let y1 =
+            rect.minY + rect.height * 0.28
+
+        let y2 =
+            rect.minY + rect.height * 0.72
+
         p.move(
             to: CGPoint(
                 x: rect.minX,
-                y: rect.minY
+                y: y1
             )
         )
 
         p.addLine(
             to: CGPoint(
                 x: rect.maxX,
-                y: rect.minY
+                y: y1
             )
         )
 
         p.move(
             to: CGPoint(
                 x: rect.minX,
-                y: rect.maxY
+                y: y2
             )
         )
 
         p.addLine(
             to: CGPoint(
                 x: rect.maxX,
-                y: rect.maxY
+                y: y2
             )
         )
 
@@ -898,7 +749,103 @@ struct MenuTwoLinesShape: Shape {
     }
 }
 
-// MARK: - Star
+// MARK: - CHATGPT LOGO
+
+struct ChatGPTLogoShape: Shape {
+
+    func path(
+        in rect: CGRect
+    ) -> Path {
+
+        var p = Path()
+
+        let w = rect.width
+        let h = rect.height
+
+        // الشكل الدائري المتقطع المشابه
+        // للدائرة التي أرسلتها
+
+        let center = CGPoint(
+            x: rect.midX,
+            y: rect.midY
+        )
+
+        let r = min(w, h) * 0.39
+
+        // القوس العلوي
+        p.addArc(
+            center: center,
+            radius: r,
+            startAngle: .degrees(205),
+            endAngle: .degrees(325),
+            clockwise: false
+        )
+
+        // القوس الأيمن
+        p.addArc(
+            center: center,
+            radius: r,
+            startAngle: .degrees(325),
+            endAngle: .degrees(65),
+            clockwise: false
+        )
+
+        // الجزء السفلي
+        p.addArc(
+            center: center,
+            radius: r,
+            startAngle: .degrees(65),
+            endAngle: .degrees(155),
+            clockwise: false
+        )
+
+        // اليسار
+        p.addArc(
+            center: center,
+            radius: r,
+            startAngle: .degrees(155),
+            endAngle: .degrees(205),
+            clockwise: false
+        )
+
+        // تفاصيل صغيرة تعطي شكل الشعار
+        let leftPoint = CGPoint(
+            x: rect.minX + w * 0.28,
+            y: rect.midY + h * 0.12
+        )
+
+        let bottomPoint = CGPoint(
+            x: rect.midX - w * 0.05,
+            y: rect.maxY - h * 0.18
+        )
+
+        p.move(
+            to: leftPoint
+        )
+
+        p.addLine(
+            to: CGPoint(
+                x: rect.minX + w * 0.24,
+                y: rect.maxY - h * 0.18
+            )
+        )
+
+        p.move(
+            to: bottomPoint
+        )
+
+        p.addLine(
+            to: CGPoint(
+                x: rect.midX + w * 0.14,
+                y: rect.maxY - h * 0.24
+            )
+        )
+
+        return p
+    }
+}
+
+// MARK: - STAR
 
 struct FourPointStarShape: Shape {
 
@@ -906,38 +853,33 @@ struct FourPointStarShape: Shape {
         in rect: CGRect
     ) -> Path {
 
-        let c =
-            CGPoint(
-                x: rect.midX,
-                y: rect.midY
-            )
+        let c = CGPoint(
+            x: rect.midX,
+            y: rect.midY
+        )
 
         let o =
             rect.width * 0.09
 
-        let top =
-            CGPoint(
-                x: c.x,
-                y: rect.minY
-            )
+        let top = CGPoint(
+            x: c.x,
+            y: rect.minY
+        )
 
-        let right =
-            CGPoint(
-                x: rect.maxX,
-                y: c.y
-            )
+        let right = CGPoint(
+            x: rect.maxX,
+            y: c.y
+        )
 
-        let bottom =
-            CGPoint(
-                x: c.x,
-                y: rect.maxY
-            )
+        let bottom = CGPoint(
+            x: c.x,
+            y: rect.maxY
+        )
 
-        let left =
-            CGPoint(
-                x: rect.minX,
-                y: c.y
-            )
+        let left = CGPoint(
+            x: rect.minX,
+            y: c.y
+        )
 
         var p = Path()
 
@@ -945,38 +887,34 @@ struct FourPointStarShape: Shape {
 
         p.addQuadCurve(
             to: right,
-            control:
-                CGPoint(
-                    x: c.x + o,
-                    y: c.y - o
-                )
+            control: CGPoint(
+                x: c.x + o,
+                y: c.y - o
+            )
         )
 
         p.addQuadCurve(
             to: bottom,
-            control:
-                CGPoint(
-                    x: c.x + o,
-                    y: c.y + o
-                )
+            control: CGPoint(
+                x: c.x + o,
+                y: c.y + o
+            )
         )
 
         p.addQuadCurve(
             to: left,
-            control:
-                CGPoint(
-                    x: c.x - o,
-                    y: c.y + o
-                )
+            control: CGPoint(
+                x: c.x - o,
+                y: c.y + o
+            )
         )
 
         p.addQuadCurve(
             to: top,
-            control:
-                CGPoint(
-                    x: c.x - o,
-                    y: c.y - o
-                )
+            control: CGPoint(
+                x: c.x - o,
+                y: c.y - o
+            )
         )
 
         p.closeSubpath()
@@ -985,7 +923,7 @@ struct FourPointStarShape: Shape {
     }
 }
 
-// MARK: - Pencil
+// MARK: - PENCIL
 
 struct PencilShape: Shape {
 
@@ -999,10 +937,8 @@ struct PencilShape: Shape {
         ) -> CGPoint {
 
             CGPoint(
-                x: rect.minX +
-                    rect.width * x,
-                y: rect.minY +
-                    rect.height * y
+                x: rect.minX + rect.width * x,
+                y: rect.minY + rect.height * y
             )
         }
 
@@ -1042,7 +978,7 @@ struct PencilShape: Shape {
     }
 }
 
-// MARK: - Globe
+// MARK: - GLOBE
 
 struct GlobeShape: Shape {
 
@@ -1058,15 +994,10 @@ struct GlobeShape: Shape {
 
         let inner =
             CGRect(
-                x:
-                    rect.midX -
-                    rect.width * 0.2,
-                y:
-                    rect.minY,
-                width:
-                    rect.width * 0.4,
-                height:
-                    rect.height
+                x: rect.midX - rect.width * 0.2,
+                y: rect.minY,
+                width: rect.width * 0.4,
+                height: rect.height
             )
 
         p.addEllipse(
@@ -1098,130 +1029,6 @@ struct GlobeShape: Shape {
             to: CGPoint(
                 x: rect.midX,
                 y: rect.maxY
-            )
-        )
-
-        return p
-    }
-}
-
-// MARK: - Chat Ring
-
-struct ChatRingShape: Shape {
-
-    func path(
-        in rect: CGRect
-    ) -> Path {
-
-        let c =
-            CGPoint(
-                x: rect.midX,
-                y: rect.midY
-            )
-
-        let r =
-            min(
-                rect.width,
-                rect.height
-            ) * 0.40
-
-        var p = Path()
-
-        // القوس العلوي
-        p.addArc(
-            center: c,
-            radius: r,
-            startAngle: .degrees(205),
-            endAngle: .degrees(315),
-            clockwise: false
-        )
-
-        // القوس السفلي
-        p.addArc(
-            center: c,
-            radius: r,
-            startAngle: .degrees(325),
-            endAngle: .degrees(85),
-            clockwise: false
-        )
-
-        // الجزء الأيسر السفلي
-        p.move(
-            to: CGPoint(
-                x:
-                    rect.minX +
-                    rect.width * 0.20,
-                y:
-                    rect.midY +
-                    rect.height * 0.12
-            )
-        )
-
-        p.addLine(
-            to: CGPoint(
-                x:
-                    rect.minX +
-                    rect.width * 0.18,
-                y:
-                    rect.maxY -
-                    rect.height * 0.08
-            )
-        )
-
-        p.addLine(
-            to: CGPoint(
-                x:
-                    rect.minX +
-                    rect.width * 0.40,
-                y:
-                    rect.maxY -
-                    rect.height * 0.08
-            )
-        )
-
-        return p
-    }
-}
-
-// MARK: - Arrow
-
-struct ChevronRightShape: Shape {
-
-    func path(
-        in rect: CGRect
-    ) -> Path {
-
-        var p = Path()
-
-        p.move(
-            to: CGPoint(
-                x:
-                    rect.minX +
-                    rect.width * 0.25,
-                y:
-                    rect.minY +
-                    rect.height * 0.15
-            )
-        )
-
-        p.addLine(
-            to: CGPoint(
-                x:
-                    rect.maxX -
-                    rect.width * 0.20,
-                y:
-                    rect.midY
-            )
-        )
-
-        p.addLine(
-            to: CGPoint(
-                x:
-                    rect.minX +
-                    rect.width * 0.25,
-                y:
-                    rect.maxY -
-                    rect.height * 0.15
             )
         )
 
