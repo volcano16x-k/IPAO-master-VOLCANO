@@ -184,52 +184,41 @@ struct LicenseActivationView: View {
             ZStack {
                 Color.black.ignoresSafeArea()
 
-                VStack(alignment: .leading, spacing: 0) {
-                    // شريط الأزرار والتنسيقات المطابق للصورة
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 24) {
-                            Button(action: { appendFormatting(tag: "**") }) {
-                                Text("B").font(.system(size: 17, weight: .bold))
-                            }
-                            Button(action: { appendFormatting(tag: "*") }) {
-                                Text("I").font(.system(size: 17)).italic()
-                            }
-                            Button(action: { appendFormatting(tag: "~~") }) {
-                                Text("U").underline()
-                            }
-                            Button(action: { appendFormatting(tag: "---") }) {
-                                Text("S").strikethrough()
-                            }
-                            Button(action: {}) {
-                                Image(systemName: "pencil.tip.crop.circle")
-                                    .font(.system(size: 17))
-                            }
-                            Button(action: {}) {
-                                Image(systemName: "link")
-                                    .font(.system(size: 17))
-                            }
-                            Button(action: {}) {
-                                Image(systemName: "text.alignleft")
-                                    .font(.system(size: 17))
+                TextEditor(text: $noteContent)
+                    .focused($isNoteFocused)
+                    .scrollContentBackground(.hidden)
+                    .background(Color.black)
+                    .foregroundStyle(.white)
+                    .font(.system(size: 18))
+                    .padding(16)
+                    // شريط التنسيق المثبت تماماً فوق لوحة المفاتيح
+                    .toolbar {
+                        ToolbarItemGroup(placement: .keyboard) {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 22) {
+                                    Button(action: { appendFormatting(tag: "**") }) {
+                                        Text("Aa").font(.system(size: 16, weight: .bold))
+                                    }
+                                    Button(action: { appendFormatting(tag: "- ") }) {
+                                        Image(systemName: "list.bullet")
+                                    }
+                                    Button(action: { appendFormatting(tag: "| |") }) {
+                                        Image(systemName: "tablecells")
+                                    }
+                                    Button(action: { appendFormatting(tag: "---") }) {
+                                        Image(systemName: "paperclip")
+                                    }
+                                    Button(action: { appendFormatting(tag: "*") }) {
+                                        Image(systemName: "pencil.tip.crop.circle")
+                                    }
+                                    Button(action: { appendFormatting(tag: "[]") }) {
+                                        Image(systemName: "link")
+                                    }
+                                }
+                                .foregroundStyle(.white)
                             }
                         }
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, 10)
                     }
-                    .background(Color(white: 0.12))
-                    .clipShape(Capsule())
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
-
-                    TextEditor(text: $noteContent)
-                        .focused($isNoteFocused)
-                        .scrollContentBackground(.hidden)
-                        .background(Color.black)
-                        .foregroundStyle(.white)
-                        .font(.system(size: 18))
-                        .padding(16)
-                }
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
