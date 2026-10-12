@@ -10,23 +10,21 @@ struct LicenseActivationView: View {
     @State private var statusMessage = ""
     @FocusState private var isFocused: Bool
     
-    // حالة فتح شاشة كتابة الملاحظات الجديدة
+    // شاشة كتابة الملاحظات الجديدة
     @State private var isWritingNote = false
     @State private var noteContent = ""
     @FocusState private var isNoteFocused: Bool
 
     enum ActivationKeyStatus {
-        case empty     // دائرة فارغة (لم يُدخل مفتاح)
-        case invalid   // علامة X (مفتاح خطأ)
-        case valid     // خطين (مفتاح صحيح وتعمل الخلفية بصمت)
+        case empty
+        case invalid
+        case valid
     }
 
     // MARK: - Colors
 
-    private let blue = Color(red: 0.10, green: 0.56, blue: 1.0)
     private let chipFill = Color(white: 0.105)
     private let strokeColor = Color.white.opacity(0.08)
-    private let textGray = Color(white: 0.78)
 
     var body: some View {
         ZStack {
@@ -37,11 +35,35 @@ struct LicenseActivationView: View {
                 // TOP BAR
                 topBar
 
+                // العنوان الرئيسي (Notes)
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text("Notes")
+                            .font(.system(size: 34, weight: .bold))
+                            .foregroundStyle(.white)
+                        Spacer()
+                    }
+                    HStack {
+                        Text("Aucune note")
+                            .font(.system(size: 15, weight: .regular))
+                            .foregroundStyle(.gray)
+                        Spacer()
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 10)
+
                 Spacer(minLength: 0)
 
-                // الواجهة دائمًا ثابتة في المنتصف
-                VStack(spacing: 20) {
-                    suggestions
+                // المنتصف (أيقونة Aucune note)
+                VStack(spacing: 16) {
+                    Image(systemName: "note.text")
+                        .font(.system(size: 40, weight: .light))
+                        .foregroundStyle(.gray)
+
+                    Text("Aucune note")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundStyle(.white)
 
                     if !statusMessage.isEmpty {
                         Text(statusMessage)
@@ -53,7 +75,7 @@ struct LicenseActivationView: View {
 
                 Spacer(minLength: 0)
 
-                // BOTTOM BAR
+                // BOTTOM BAR (شريط البحث وزر الكتابة)
                 bottomBar
             }
         }
@@ -68,114 +90,39 @@ struct LicenseActivationView: View {
 
     private var topBar: some View {
         HStack(spacing: 12) {
-            // يسار: خطان
+            // زر الرجوع في اليسار
             Button {
                 resetState()
             } label: {
-                MenuTwoLinesShape()
-                    .stroke(.white, style: StrokeStyle(lineWidth: 2.4, lineCap: .round))
-                    .frame(width: 20, height: 14)
-                    .frame(width: 42, height: 42)
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 36, height: 36)
                     .background(chipFill, in: Circle())
                     .overlay(Circle().stroke(strokeColor, lineWidth: 1))
             }
 
-            // الوسط
-            Button {} label: {
-                HStack(spacing: 8) {
-                    FourPointStarShape()
-                        .fill(blue)
-                        .frame(width: 22, height: 22)
-
-                    Text("Nots Pro")
-                        .font(.system(size: 17, weight: .semibold))
-                }
-                .foregroundStyle(blue)
-                .padding(.horizontal, 16)
-                .frame(height: 42)
-                .background(chipFill, in: Capsule())
-                .overlay(Capsule().stroke(strokeColor, lineWidth: 1))
-            }
-
             Spacer()
 
-            // يمين: الدائرة العلوية المتغيرة حسب حالة المفتاح
-            ZStack {
-                Circle()
-                    .fill(chipFill)
-                    .frame(width: 42, height: 42)
+            // زر الخيارات في اليمين
+            Button {} label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 36, height: 36)
+                    .background(chipFill, in: Circle())
                     .overlay(Circle().stroke(strokeColor, lineWidth: 1))
-
-                switch keyStatus {
-                case .empty:
-                    Circle()
-                        .stroke(.white.opacity(0.4), lineWidth: 2)
-                        .frame(width: 20, height: 20)
-                case .invalid:
-                    Image(systemName: "xmark")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(.red)
-                case .valid:
-                    VStack(spacing: 3) {
-                        RoundedRectangle(cornerRadius: 1).frame(width: 14, height: 2)
-                        RoundedRectangle(cornerRadius: 1).frame(width: 14, height: 2)
-                    }
-                    .foregroundStyle(.green)
-                }
             }
         }
         .padding(.horizontal, 20)
         .padding(.top, 4)
     }
 
-    // MARK: - Suggestions
-
-    private var suggestions: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            suggestionRow(title: "Créer une nouvelle note") {
-                Image(systemName: "note.text.badge.plus")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundStyle(textGray)
-            }
-
-            suggestionRow(title: "Écrire ou modifier une note") {
-                PencilShape()
-                    .stroke(
-                        textGray,
-                        style: StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round)
-                    )
-                    .frame(width: 20, height: 20)
-            }
-
-            suggestionRow(title: "Rechercher dans les notes") {
-                GlobeShape()
-                    .stroke(textGray, style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
-                    .frame(width: 20, height: 20)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.leading, 50)
-        .padding(.trailing, 20)
-    }
-
-    private func suggestionRow<Icon: View>(
-        title: String,
-        @ViewBuilder icon: () -> Icon
-    ) -> some View {
-        HStack(spacing: 28) {
-            icon()
-                .frame(width: 25, height: 25)
-
-            Text(title)
-                .font(.system(size: 16, weight: .regular))
-                .foregroundStyle(textGray)
-        }
-    }
-
     // MARK: - Bottom Bar
 
     private var bottomBar: some View {
         HStack(spacing: 12) {
+            // شريط البحث
             HStack(spacing: 10) {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 16, weight: .medium))
@@ -201,6 +148,7 @@ struct LicenseActivationView: View {
             .background(chipFill, in: Capsule())
             .overlay(Capsule().stroke(strokeColor, lineWidth: 1))
 
+            // زر الكتابة في أقصى اليمين
             Button {
                 isWritingNote = true
             } label: {
@@ -296,73 +244,5 @@ struct LicenseActivationView: View {
             statusMessage = "يرجى إدخال مفتاح ترخيص صحيح يبدأ بـ VOLC."
         }
         key = ""
-    }
-}
-
-// MARK: - Shapes
-
-struct MenuTwoLinesShape: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        let y1 = rect.midY - rect.height * 0.25
-        let y2 = rect.midY + rect.height * 0.25
-
-        path.move(to: CGPoint(x: rect.minX, y: y1))
-        path.addLine(to: CGPoint(x: rect.maxX, y: y1))
-        path.move(to: CGPoint(x: rect.minX, y: y2))
-        path.addLine(to: CGPoint(x: rect.maxX, y: y2))
-        return path
-    }
-}
-
-struct FourPointStarShape: Shape {
-    func path(in rect: CGRect) -> Path {
-        let center = CGPoint(x: rect.midX, y: rect.midY)
-        let o = rect.width * 0.09
-        let top = CGPoint(x: center.x, y: rect.minY)
-        let right = CGPoint(x: rect.maxX, y: center.y)
-        let bottom = CGPoint(x: center.x, y: rect.maxY)
-        let left = CGPoint(x: rect.minX, y: center.y)
-
-        var path = Path()
-        path.move(to: top)
-        path.addQuadCurve(to: right, control: CGPoint(x: center.x + o, y: center.y - o))
-        path.addQuadCurve(to: bottom, control: CGPoint(x: center.x + o, y: center.y + o))
-        path.addQuadCurve(to: left, control: CGPoint(x: center.x - o, y: center.y + o))
-        path.addQuadCurve(to: top, control: CGPoint(x: center.x - o, y: center.y - o))
-        path.closeSubpath()
-        return path
-    }
-}
-
-struct PencilShape: Shape {
-    func path(in rect: CGRect) -> Path {
-        func pt(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
-            CGPoint(x: rect.minX + rect.width * x, y: rect.minY + rect.height * y)
-        }
-        var path = Path()
-        path.move(to: pt(0.10, 0.90))
-        path.addLine(to: pt(0.166, 0.65))
-        path.addLine(to: pt(0.728, 0.088))
-        path.addLine(to: pt(0.912, 0.272))
-        path.addLine(to: pt(0.35, 0.834))
-        path.closeSubpath()
-        path.move(to: pt(0.166, 0.65))
-        path.addLine(to: pt(0.35, 0.834))
-        return path
-    }
-}
-
-struct GlobeShape: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.addEllipse(in: rect)
-        let inner = CGRect(x: rect.midX - rect.width * 0.20, y: rect.minY, width: rect.width * 0.40, height: rect.height)
-        path.addEllipse(in: inner)
-        path.move(to: CGPoint(x: rect.minX, y: rect.midY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
-        path.move(to: CGPoint(x: rect.midX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.midX, y: rect.maxY))
-        return path
     }
 }
