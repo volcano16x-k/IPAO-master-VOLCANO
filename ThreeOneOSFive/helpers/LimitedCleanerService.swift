@@ -1,263 +1,126 @@
-import Foundation
-import Darwin
+import SwiftUI
 
-struct LimitedCleanerUsage: Equatable {
-    let cacheBytes: Int64
-    let temporaryBytes: Int64
-    let removableItemCount: Int
+struct LicenseActivationView: View {
+    @ObservedObject var manager: LicenseManager
+    @State private var key = ""
+    @FocusState private var keyFocused: Bool
 
-    static let empty = LimitedCleanerUsage(
-        cacheBytes: 0,
-        temporaryBytes: 0,
-        removableItemCount: 0
-    )
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                AnimatedHyperBackdrop()
+                    .ignoresSafeArea()
 
-    var totalBytes: Int64 {
-        cacheBytes + temporaryBytes
-    }
-}
+                Color.black.opacity(0.18)
+                    .ignoresSafeArea()
 
-struct LimitedCleanerResult: Equatable {
-    let before: LimitedCleanerUsage
-    let after: LimitedCleanerUsage
-    let removedItemCount: Int
-    let failedItemCount: Int
+                ScrollViewReader { proxy in
+                    ScrollView(showsIndicators: false) {
+                        VStack(spacing: 0) {
+                            Spacer(minLength: 42)
 
-    var freedBytes: Int64 {
-        max(0, before.totalBytes - after.totalBytes)
-    }
-}
+                            Text("VOLCANO")
+                                .font(.system(size: 30, weight: .black, design: .rounded))
+                                .tracking(1.4)
+                                .foregroundStyle(.white)
 
-enum LimitedCleanerError: Error, Equatable {
-    case unsafeContainerRoot
-}
+                            Text("Version: 1.1.0")
+                                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.55))
+                                .padding(.top, 5)
 
-enum LimitedCleanerService {
-    typealias ContainerRootValidator = (URL) -> Bool
+                            Text("Package: VOLCANO")
+                                .font(.system(size: 12, weight: .bold, design: .rounded))
+                                .foregroundStyle(AppTheme.secondaryAccent.opacity(0.9))
+                                .padding(.top, 8)
 
-    /// This explicit allowlist is the product boundary. Do not add global `/var`
-    /// paths here: this cleaner is intentionally limited to per-app disposable data.
-    static let allowedRelativeDirectories = ["Library/Caches", "tmp"]
+                            VStack(spacing: 16) {
+                                HStack(spacing: 10) {
+                                    Image(systemName: manager.isBusy ? "arrow.triangle.2.circlepath" : "key.fill")
+                                        .foregroundStyle(AppTheme.secondaryAccent)
+                                        .font(.system(size: 16, weight: .bold))
+                                    Text(manager.isBusy ? "Package initializing" : "Key required")
+                                        .font(.system(size: 16, weight: .black, design: .rounded))
+                                        .foregroundStyle(.white)
+                                    Spacer()
+                                }
 
-    static func scan(
-        containerURL: URL,
-        rootValidator: ContainerRootValidator
-    ) throws -> LimitedCleanerUsage {
-        try withValidatedRootDescriptor(containerURL, rootValidator: rootValidator) { rootDescriptor in
-            let cache = scanAllowedDirectory(
-                components: ["Library", "Caches"],
-                rootDescriptor: rootDescriptor
-            )
-            let temporary = scanAllowedDirectory(
-                components: ["tmp"],
-                rootDescriptor: rootDescriptor
-            )
-            return LimitedCleanerUsage(
-                cacheBytes: cache.bytes,
-                temporaryBytes: temporary.bytes,
-                removableItemCount: cache.itemCount + temporary.itemCount
-            )
-        }
-    }
+                                Text("Enter your VOLCANO license key to continue")
+                                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.white.opacity(0.68))
+                                    .frame(maxWidth: .infinity, alignment: .leading)
 
-    static func clean(
-        containerURL: URL,
-        rootValidator: ContainerRootValidator
-    ) throws -> LimitedCleanerResult {
-        let before = try scan(containerURL: containerURL, rootValidator: rootValidator)
-        var removal = RemovalSummary()
+                                TextField("License key", text: $key)
+                                    .focused($keyFocused)
+                                    .textInputAutocapitalization(.never)
+                                    .autocorrectionDisabled()
+                                    .submitLabel(.done)
+                                    .onSubmit { activate() }
+                                    .font(.system(size: 16, weight: .medium, design: .monospaced))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 16)
+                                    .frame(height: 54)
+                                    .background(Color.gray.opacity(0.22), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+                                    .overlay(RoundedRectangle(cornerRadius: 17, style: .continuous).stroke(AppTheme.accent.opacity(0.48), lineWidth: 1))
+                                    .id("license-field")
 
-        try withValidatedRootDescriptor(containerURL, rootValidator: rootValidator) { rootDescriptor in
-            for components in [["Library", "Caches"], ["tmp"]] {
-                guard let directoryDescriptor = openDirectory(
-                    components: components,
-                    relativeTo: rootDescriptor
-                ) else {
-                    continue
-                }
-                removeDirectoryContents(directoryDescriptor, summary: &removal)
-                close(directoryDescriptor)
-            }
-        }
+                                Toggle("Remember key on this device", isOn: $manager.rememberKey)
+                                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                                    .foregroundStyle(.white.opacity(0.72))
+                                    .tint(AppTheme.accent)
 
-        let after = try scan(containerURL: containerURL, rootValidator: rootValidator)
-        return LimitedCleanerResult(
-            before: before,
-            after: after,
-            removedItemCount: removal.removedItemCount,
-            failedItemCount: removal.failedItemCount
-        )
-    }
+                                Button(action: activate) {
+                                    HStack(spacing: 9) {
+                                        Image(systemName: manager.isBusy ? "hourglass" : "checkmark.shield.fill")
+                                        Text(manager.isBusy ? "VERIFYING…" : "VERIFY AND CONTINUE")
+                                    }
+                                    .font(.system(size: 14, weight: .black, design: .rounded))
+                                    .foregroundStyle(.white)
+                                    .frame(maxWidth: .infinity, minHeight: 54)
+                                    .background(AppTheme.accent, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+                                    .shadow(color: AppTheme.accent.opacity(0.30), radius: 14, y: 7)
+                                }
+                                .buttonStyle(.plain)
+                                .disabled(key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || manager.isBusy)
+                                .opacity(key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.48 : 1)
 
-    private static func withValidatedRootDescriptor<T>(
-        _ rawURL: URL,
-        rootValidator: ContainerRootValidator,
-        operation: (Int32) throws -> T
-    ) throws -> T {
-        guard rawURL.isFileURL else { throw LimitedCleanerError.unsafeContainerRoot }
-        let root = rawURL.standardizedFileURL
-        guard root.path.hasPrefix("/"),
-              root.path != "/",
-              rootValidator(root) else {
-            throw LimitedCleanerError.unsafeContainerRoot
-        }
+                                if let message = manager.message {
+                                    Text(message)
+                                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                                        .foregroundStyle(.red.opacity(0.95))
+                                        .multilineTextAlignment(.center)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.horizontal, 14)
+                                        .padding(.vertical, 10)
+                                        .background(Color.gray.opacity(0.20), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                }
+                            }
+                            .padding(20)
+                            .background(.ultraThinMaterial.opacity(0.72), in: RoundedRectangle(cornerRadius: 25, style: .continuous))
+                            .background(Color.gray.opacity(0.18), in: RoundedRectangle(cornerRadius: 25, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: 25, style: .continuous).stroke(Color.white.opacity(0.16), lineWidth: 1))
+                            .padding(.horizontal, 22)
+                            .padding(.top, 26)
+                            .id("activation-card")
 
-        let descriptor = open(
-            root.path,
-            O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW
-        )
-        guard descriptor >= 0 else { throw LimitedCleanerError.unsafeContainerRoot }
-        defer { close(descriptor) }
-        return try operation(descriptor)
-    }
-
-    private static func scanAllowedDirectory(
-        components: [String],
-        rootDescriptor: Int32
-    ) -> ScanSummary {
-        guard let directoryDescriptor = openDirectory(
-            components: components,
-            relativeTo: rootDescriptor
-        ) else {
-            return .empty
-        }
-        defer { close(directoryDescriptor) }
-        return scanDirectory(directoryDescriptor)
-    }
-
-    private static func openDirectory(
-        components: [String],
-        relativeTo rootDescriptor: Int32
-    ) -> Int32? {
-        var currentDescriptor = dup(rootDescriptor)
-        guard currentDescriptor >= 0 else { return nil }
-
-        for component in components {
-            let nextDescriptor = component.withCString {
-                openat(
-                    currentDescriptor,
-                    $0,
-                    O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW
-                )
-            }
-            close(currentDescriptor)
-            guard nextDescriptor >= 0 else { return nil }
-            currentDescriptor = nextDescriptor
-        }
-        return currentDescriptor
-    }
-
-    private static func scanDirectory(_ directoryDescriptor: Int32) -> ScanSummary {
-        var result = ScanSummary.empty
-        forEachEntry(in: directoryDescriptor) { name, information in
-            switch information.st_mode & S_IFMT {
-            case S_IFREG:
-                result.bytes += max(0, Int64(information.st_size))
-                result.itemCount += 1
-            case S_IFDIR:
-                let childDescriptor = name.withCString {
-                    openat(
-                        directoryDescriptor,
-                        $0,
-                        O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW
-                    )
-                }
-                guard childDescriptor >= 0 else { return }
-                let nested = scanDirectory(childDescriptor)
-                close(childDescriptor)
-                result.bytes += nested.bytes
-                result.itemCount += nested.itemCount
-            default:
-                // Symbolic links, sockets and device nodes are never followed or counted.
-                break
-            }
-        }
-        return result
-    }
-
-    private static func removeDirectoryContents(
-        _ directoryDescriptor: Int32,
-        summary: inout RemovalSummary
-    ) {
-        forEachEntry(in: directoryDescriptor) { name, information in
-            switch information.st_mode & S_IFMT {
-            case S_IFREG:
-                let result = name.withCString { unlinkat(directoryDescriptor, $0, 0) }
-                if result == 0 {
-                    summary.removedItemCount += 1
-                } else if errno != ENOENT {
-                    summary.failedItemCount += 1
-                }
-            case S_IFDIR:
-                let childDescriptor = name.withCString {
-                    openat(
-                        directoryDescriptor,
-                        $0,
-                        O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW
-                    )
-                }
-                guard childDescriptor >= 0 else {
-                    if errno != ENOENT && errno != ELOOP {
-                        summary.failedItemCount += 1
+                            Spacer(minLength: 42)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.bottom, 28)
                     }
-                    return
+                    .scrollDismissesKeyboard(.interactively)
+                    .onChange(of: keyFocused) { focused in
+                        guard focused else { return }
+                        withAnimation(.easeOut(duration: 0.25)) { proxy.scrollTo("activation-card", anchor: .center) }
+                    }
                 }
-                removeDirectoryContents(childDescriptor, summary: &summary)
-                close(childDescriptor)
-
-                let result = name.withCString {
-                    unlinkat(directoryDescriptor, $0, AT_REMOVEDIR)
-                }
-                if result != 0,
-                   errno != ENOENT,
-                   errno != ENOTEMPTY {
-                    summary.failedItemCount += 1
-                }
-            default:
-                // Preserve and never follow symbolic links or special nodes.
-                break
             }
         }
+        .preferredColorScheme(.dark)
     }
 
-    private static func forEachEntry(
-        in directoryDescriptor: Int32,
-        body: (String, stat) -> Void
-    ) {
-        let iterationDescriptor = dup(directoryDescriptor)
-        guard iterationDescriptor >= 0,
-              let directory = fdopendir(iterationDescriptor) else {
-            if iterationDescriptor >= 0 { close(iterationDescriptor) }
-            return
-        }
-        defer { closedir(directory) }
-
-        while let entry = readdir(directory) {
-            let name = withUnsafePointer(to: &entry.pointee.d_name) { pointer in
-                pointer.withMemoryRebound(to: CChar.self, capacity: Int(MAXNAMLEN) + 1) {
-                    String(cString: $0)
-                }
-            }
-            guard name != ".", name != ".." else { continue }
-
-            var information = stat()
-            let status = name.withCString {
-                fstatat(directoryDescriptor, $0, &information, AT_SYMLINK_NOFOLLOW)
-            }
-            guard status == 0 else { continue }
-            body(name, information)
-        }
+    private func activate() {
+        keyFocused = false
+        manager.activate(key: key)
     }
-}
-
-private struct ScanSummary {
-    var bytes: Int64
-    var itemCount: Int
-
-    static let empty = ScanSummary(bytes: 0, itemCount: 0)
-}
-
-private struct RemovalSummary {
-    var removedItemCount = 0
-    var failedItemCount = 0
 }
