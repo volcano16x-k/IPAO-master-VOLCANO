@@ -60,7 +60,7 @@ struct LicenseActivationView: View {
 
             Button(action: {}) {
                 ChatRingShape()
-                    .stroke(.white, style: StrokeStyle(lineWidth: 2.2, lineCap: .round, lineJoin: .round))
+                    .stroke(.white, style: StrokeStyle(lineWidth: 2.4, lineCap: .round, lineJoin: .round))
                     .frame(width: 22, height: 22)
                     .frame(width: 42, height: 42)
                     .background(chipFill, in: Circle())
@@ -180,10 +180,8 @@ struct MenuTwoLinesShape: Shape {
 
 struct FourPointStarShape: Shape {
     func path(in rect: CGRect) -> Path {
-        let w = rect.width
-        let h = rect.height
         let c = CGPoint(x: rect.midX, y: rect.midY)
-        let o = w * 0.09
+        let o = rect.width * 0.09
 
         let top = CGPoint(x: c.x, y: rect.minY)
         let right = CGPoint(x: rect.maxX, y: c.y)
@@ -197,7 +195,6 @@ struct FourPointStarShape: Shape {
         p.addQuadCurve(to: left, control: CGPoint(x: c.x - o, y: c.y + o))
         p.addQuadCurve(to: top, control: CGPoint(x: c.x - o, y: c.y - o))
         p.closeSubpath()
-        _ = h
         return p
     }
 }
@@ -267,16 +264,16 @@ struct ChatRingShape: Shape {
         var p = Path()
 
         p.addArc(center: c, radius: r,
-                 startAngle: .degrees(160), endAngle: .degrees(330),
+                 startAngle: .degrees(195), endAngle: .degrees(335),
                  clockwise: false)
 
         p.addArc(center: c, radius: r,
-                 startAngle: .degrees(20), endAngle: .degrees(110),
+                 startAngle: .degrees(5), endAngle: .degrees(85),
                  clockwise: false)
 
-        p.move(to: point(112, r))
-        p.addLine(to: CGPoint(x: rect.minX + r * 0.1, y: rect.maxY))
-        p.addLine(to: point(148, r))
+        p.move(to: point(100, r))
+        p.addLine(to: CGPoint(x: rect.minX + r * 0.05, y: rect.maxY - r * 0.02))
+        p.addLine(to: point(150, r))
 
         return p
     }
