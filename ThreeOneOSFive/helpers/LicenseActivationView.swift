@@ -14,8 +14,8 @@ struct LicenseActivationView: View {
     @State private var isWaitingForAI = false
     @FocusState private var isFocused: Bool
 
-    // الصق مفتاحك الجديد هنا بين علامتي التنصيص بدون مسافات
-    private let apiKey = "AQ.Ab8RN6IsFANXvuNj-mgPJ_Kty1GIhhKzfGFCyQA2Nn8NhbJr8w"
+    // الصق مفتاحك هنا بين علامتي التنصيص بدون مسافات
+    private let apiKey = "ضع_المفتاح_هنا"
 
     private let endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent"
 
@@ -231,17 +231,17 @@ struct LicenseActivationView: View {
         }
     }
 
-    private enum AuthMode: CaseIterable {
-        case googHeader
+    private enum AuthMode: String, CaseIterable {
+        case header
         case bearer
-        case queryKey
+        case query
     }
 
     private func send(contents: [[String: Any]], mode: AuthMode) async throws -> (Int, [String: Any]?) {
         let cleanKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         var urlString = endpoint
 
-        if mode == .queryKey {
+        if mode == .query {
             let encoded = cleanKey.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? cleanKey
             urlString += "?key=\(encoded)"
         }
@@ -254,11 +254,11 @@ struct LicenseActivationView: View {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
         switch mode {
-        case .googHeader:
+        case .header:
             request.setValue(cleanKey, forHTTPHeaderField: "x-goog-api-key")
         case .bearer:
             request.setValue("Bearer \(cleanKey)", forHTTPHeaderField: "Authorization")
-        case .queryKey:
+        case .query:
             break
         }
 
@@ -279,7 +279,9 @@ struct LicenseActivationView: View {
         }
 
         Task {
-            var reply = "تعذر الحصول على رد."
+            var reply = "v4 | تعذر الحصول على رد."
+            var attempts: [String] = []
+            let cleanKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
 
             do {
                 for mode in AuthMode.allCases {
@@ -291,20 +293,24 @@ struct LicenseActivationView: View {
                        let parts = content["parts"] as? [[String: Any]],
                        let text = parts.first?["text"] as? String {
                         reply = text
+                        attempts = []
                         break
                     }
 
+                    attempts.append("\(mode.rawValue):\(code)")
+
+                    var message = "رد غير متوقع"
                     if let err = json?["error"] as? [String: Any],
-                       let message = err["message"] as? String {
-                        reply = "خطأ \(code): \(message)"
-                    } else {
-                        reply = "خطأ \(code): رد غير متوقع."
+                       let m = err["message"] as? String {
+                        message = m
                     }
+
+                    reply = "v4 | \(attempts.joined(separator: ", ")) | طول المفتاح \(cleanKey.count) | يبدأ بـ \(cleanKey.prefix(3)) | \(message)"
 
                     if code != 401 && code != 403 { break }
                 }
             } catch {
-                reply = "خطأ شبكة: \(error.localizedDescription)"
+                reply = "v4 | خطأ شبكة: \(error.localizedDescription)"
             }
 
             await MainActor.run { finishWithReply(reply) }
