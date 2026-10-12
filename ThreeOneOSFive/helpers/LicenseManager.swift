@@ -8,11 +8,11 @@ final class LicenseManager: ObservableObject {
 
     // MARK: - Published State
 
-    @Published private(set) var isActive: Bool = false
-    @Published private(set) var isBusy: Bool = false
+    @Published private(set) var isActive = false
+    @Published private(set) var isBusy = false
     @Published private(set) var message: String?
 
-    @Published var rememberKey: Bool = true
+    @Published var rememberKey = true
 
     // MARK: - Keychain
 
@@ -38,7 +38,12 @@ final class LicenseManager: ObservableObject {
         rememberedKey() != nil
     }
 
-    /// حالة الدائرة العلوية
+    enum CircleState {
+        case valid
+        case invalid
+        case checking
+    }
+
     var circleState: CircleState {
         if isBusy {
             return .checking
@@ -49,12 +54,6 @@ final class LicenseManager: ObservableObject {
         }
 
         return .invalid
-    }
-
-    enum CircleState {
-        case valid
-        case invalid
-        case checking
     }
 
     // MARK: - Startup
@@ -69,7 +68,23 @@ final class LicenseManager: ObservableObject {
             return
         }
 
-        verify(key: savedKey, saveKey: false)
+        verify(
+            key: savedKey,
+            saveKey: false
+        )
+    }
+
+    // MARK: - Launch Session
+
+    func beginLaunchSession() {
+
+        guard !isBusy else {
+            return
+        }
+
+        if !isActive {
+            checkSavedKeyOnStartup()
+        }
     }
 
     // MARK: - Activate
@@ -81,8 +96,10 @@ final class LicenseManager: ObservableObject {
         )
 
         guard !trimmed.isEmpty else {
+
             isActive = false
             message = "Enter your access key"
+
             return
         }
 
@@ -94,6 +111,7 @@ final class LicenseManager: ObservableObject {
            Date().timeIntervalSince(lastAttemptAt) < 1 {
 
             message = "Please wait a moment"
+
             return
         }
 
@@ -113,8 +131,11 @@ final class LicenseManager: ObservableObject {
     ) {
 
         guard let url = URL(string: verifyURL) else {
+
+            isBusy = false
             isActive = false
             message = nil
+
             return
         }
 
@@ -123,7 +144,6 @@ final class LicenseManager: ObservableObject {
         var request = URLRequest(url: url)
 
         request.httpMethod = "POST"
-
         request.timeoutInterval = 15
 
         request.setValue(
@@ -147,6 +167,7 @@ final class LicenseManager: ObservableObject {
             isBusy = false
             isActive = false
             message = nil
+
             return
         }
 
@@ -164,31 +185,41 @@ final class LicenseManager: ObservableObject {
 
                 // لا نعتبر المفتاح صالحاً عند انقطاع الاتصال
                 if error != nil {
+
                     self.isActive = false
                     self.message = nil
+
                     return
                 }
 
                 guard
-                    let httpResponse = response as? HTTPURLResponse,
-                    (200...299).contains(httpResponse.statusCode),
+                    let httpResponse =
+                        response as? HTTPURLResponse,
+                    (200...299).contains(
+                        httpResponse.statusCode
+                    ),
                     let data
                 else {
+
                     self.isActive = false
                     self.message = nil
+
                     return
                 }
 
                 do {
 
                     guard
-                        let json = try JSONSerialization.jsonObject(
-                            with: data,
-                            options: []
-                        ) as? [String: Any]
+                        let json =
+                            try JSONSerialization.jsonObject(
+                                with: data,
+                                options: []
+                            ) as? [String: Any]
                     else {
+
                         self.isActive = false
                         self.message = nil
+
                         return
                     }
 
@@ -201,6 +232,7 @@ final class LicenseManager: ObservableObject {
                         self.message = nil
 
                         if saveKey {
+
                             self.save(
                                 key,
                                 for: self.keyAccount
@@ -212,8 +244,10 @@ final class LicenseManager: ObservableObject {
                         self.isActive = false
                         self.message = nil
 
-                        // حذف المفتاح إذا رفضه السيرفر
-                        self.delete(self.keyAccount)
+                        // حذف المفتاح المرفوض من الجهاز
+                        self.delete(
+                            self.keyAccount
+                        )
                     }
 
                 } catch {
@@ -347,7 +381,7 @@ final class LicenseManager: ObservableObject {
 }
 
 
-// MARK: - Top Circle
+// MARK: - License Status Circle
 
 struct LicenseStatusCircle: View {
 
@@ -376,14 +410,10 @@ struct LicenseStatusCircle: View {
 
             case .valid:
 
-                // Key صالح:
-                // دائرة فارغة
                 EmptyView()
 
             case .invalid:
 
-                // Key غير صالح:
-                // X داخل الدائرة
                 XShape()
                     .stroke(
                         Color.white,
@@ -456,7 +486,7 @@ struct XShape: Shape {
 }
 
 
-// MARK: - Example Top Bar
+// MARK: - Volcano Top Bar
 
 struct VolcanoTopBar: View {
 
@@ -466,16 +496,18 @@ struct VolcanoTopBar: View {
 
         HStack {
 
-            // زر اليسار بشلطتين
             MenuTwoLinesButton()
 
             Spacer()
 
-            // Mettre à niveau
             HStack(spacing: 12) {
 
                 Text("✦")
-                    .font(.system(size: 30))
+                    .font(
+                        .system(
+                            size: 30
+                        )
+                    )
                     .foregroundColor(.blue)
 
                 Text("Mettre à niveau")
@@ -502,7 +534,6 @@ struct VolcanoTopBar: View {
 
             Spacer()
 
-            // دائرة حالة الـKey
             LicenseStatusCircle(
                 state: license.circleState
             )
@@ -513,7 +544,7 @@ struct VolcanoTopBar: View {
 }
 
 
-// MARK: - Left Button
+// MARK: - Menu Button
 
 struct MenuTwoLinesButton: View {
 
