@@ -11,7 +11,6 @@ struct LicenseActivationView: View {
             Color.black.ignoresSafeArea()
 
             VStack(alignment: .leading, spacing: 0) {
-                // شريط العلوية (Modifier / FaceTime)
                 HStack {
                     Button(action: {}) {
                         Text("Modifier")
@@ -29,7 +28,6 @@ struct LicenseActivationView: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 15)
 
-                // الأزرار الرئيسية (Créer un lien و Nouveau FaceTime)
                 HStack(spacing: 12) {
                     Button(action: {}) {
                         VStack(spacing: 6) {
@@ -74,8 +72,7 @@ struct LicenseActivationView: View {
     }
 }
 
-// شاشة إدخال المفتاح عند الضغط على زر Nouveau FaceTime
-struct NewKeyInputView: BindingView, View {
+struct NewKeyInputView: View {
     @ObservedObject var manager: LicenseManager
     @Binding var isPresented: Bool
     @State private var key = ""
@@ -86,7 +83,6 @@ struct NewKeyInputView: BindingView, View {
             Color.black.ignoresSafeArea()
 
             VStack(alignment: .leading, spacing: 0) {
-                // شريط الإلغاء
                 HStack {
                     Spacer()
                     Button("Annuler") {
@@ -104,7 +100,6 @@ struct NewKeyInputView: BindingView, View {
                     .padding(.horizontal, 20)
                     .padding(.top, 10)
 
-                // حقل الإدخال مع علامة الزائد (+)
                 HStack(spacing: 12) {
                     Text("À :")
                         .font(.system(size: 17))
