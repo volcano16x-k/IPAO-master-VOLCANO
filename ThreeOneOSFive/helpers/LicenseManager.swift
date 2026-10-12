@@ -1,104 +1,85 @@
-import Combine
 import Foundation
-import Security
+import SwiftUI
 
-@MainActor
-final class LicenseManager: ObservableObject {
-    static let accessKey = "1"
-
-    @Published private(set) var expirationDate: Date?
-    @Published private(set) var isActive = false
-    @Published private(set) var isBusy = false
-    @Published private(set) var message: String?
-    @Published private(set) var contactOwner: String?
-    @Published var rememberKey = true
-
-    private let service = "com.VOLCANO.external-ios.activation"
-    private let keyAccount = "license-key"
-    private var lastAttemptAt: Date?
+class LicenseManager: ObservableObject {
+    @Published var isActive: Bool {
+        didSet {
+            UserDefaults.standard.set(isActive, forKey: "isKeyAuthorized")
+        }
+    }
+    
+    @Published var message: String? = nil
+    @Published var isBusy: Bool = false
+    @Published var rememberKey: Bool = true
+    @Published var contactOwner: String? = nil
 
     init() {
-        isActive = hasRememberedKey
-    }
-
-    var hasRememberedKey: Bool { string(for: keyAccount) == Self.accessKey }
-
-    func beginLaunchSession() {
-        isActive = hasRememberedKey
-        message = isActive ? "Ready to use" : "Key required — enter your access key"
+        self.isActive = UserDefaults.standard.bool(forKey: "isKeyAuthorized")
     }
 
     func activate(key: String) {
-        let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, !isBusy else { return }
-        if let lastAttemptAt, Date().timeIntervalSince(lastAttemptAt) < 1 {
-            message = "Please wait a moment before trying again"
+        let trimmedKey = key.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedKey.isEmpty else {
+            self.message = "الرجاء إدخال المفتاح!"
             return
         }
-        lastAttemptAt = Date()
+
         isBusy = true
-        message = "Checking access key…"
+        message = nil
 
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            self.isBusy = false
-            guard trimmed == Self.accessKey else {
-                self.isActive = false
-                self.message = "Invalid access key"
-                return
-            }
-            if self.rememberKey { self.save(Self.accessKey, for: self.keyAccount) }
-            self.isActive = true
-            self.message = "Activated successfully"
+        guard let url = URL(string: "https://keybot1-u5id.onrender.com/verify-key") else {
+            isBusy = false
+            message = "رابط السيرفر غير صالح"
+            return
         }
-    }
 
-    func rememberedKey() -> String? { string(for: keyAccount) }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-    func refresh() {
-        isActive = hasRememberedKey
-        message = isActive ? "Ready to use" : "Key required — enter your access key"
-    }
+        let body: [String: String] = ["key": trimmedKey]
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body, options: [])
+        } catch {
+            isBusy = false
+            message = "خطأ في تجهيز البيانات"
+            return
+        }
 
-    func deactivate() {
-        delete(keyAccount)
-        isActive = false
-        message = "Activation removed from this device"
-    }
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                self.isBusy = false
 
-    private func string(for account: String) -> String? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
-        ]
-        var result: CFTypeRef?
-        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
-              let data = result as? Data else { return nil }
-        return String(data: data, encoding: .utf8)
-    }
+                if let error = error {
+                    self.message = "خطأ في الاتصال بالسيرفر: \(error.localizedDescription)"
+                    return
+                }
 
-    private func save(_ value: String, for account: String) {
-        let base: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account
-        ]
-        SecItemDelete(base as CFDictionary)
-        var item = base
-        item[kSecValueData as String] = Data(value.utf8)
-        item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-        SecItemAdd(item as CFDictionary, nil)
-    }
+                guard let data = data else {
+                    self.message = "لم يتم استقبال استجابة من السيرفر"
+                    return
+                }
 
-    private func delete(_ account: String) {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account
-        ]
-        SecItemDelete(query as CFDictionary)
+                do {
+                    if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
+                       let success = json["success"] as? Bool {
+                        
+                        if success {
+                            // ✅ تم التحقق وفتح التطبيق بنجاح
+                            self.isActive = true
+                            self.message = nil
+                        } else {
+                            // ❌ المفتاح غير صحيح أو منتهي
+                            let serverMessage = json["message"] as? String ?? "المفتاح غير صحيح"
+                            self.message = serverMessage
+                        }
+                    } else {
+                        self.message = "رد غير متوقع من السيرفر"
+                    }
+                } catch {
+                    self.message = "فشل في قراءة بيانات السيرفر"
+                }
+            }
+        }.resume()
     }
 }
