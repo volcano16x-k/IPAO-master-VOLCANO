@@ -13,6 +13,12 @@ struct CleanerCatalogRecord: Equatable {
     let usage: LimitedCleanerUsage
 
     var bundleID: String { application.bundleID }
+    
+    static func == (lhs: CleanerCatalogRecord, rhs: CleanerCatalogRecord) -> Bool {
+        return lhs.application == rhs.application &&
+               lhs.containerPath == rhs.containerPath &&
+               lhs.usage == rhs.usage
+    }
 }
 
 enum CleanerSortOrder: String, CaseIterable, Identifiable {
