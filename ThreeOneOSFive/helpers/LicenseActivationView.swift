@@ -33,9 +33,9 @@ struct LicenseActivationView: View {
     private var topBar: some View {
         HStack(spacing: 12) {
             Button(action: {}) {
-                Image(systemName: "line.3.horizontal")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundStyle(.white)
+                MenuTwoLinesShape()
+                    .stroke(.white, style: StrokeStyle(lineWidth: 2.4, lineCap: .round))
+                    .frame(width: 20, height: 10)
                     .frame(width: 42, height: 42)
                     .background(chipFill, in: Circle())
                     .overlay(Circle().stroke(strokeColor, lineWidth: 1))
@@ -144,6 +144,19 @@ struct LicenseActivationView: View {
         .overlay(Capsule().stroke(strokeColor, lineWidth: 1))
         .padding(.horizontal, 12)
         .padding(.bottom, 13)
+    }
+}
+
+// MARK: - Menu icon (two lines)
+
+struct MenuTwoLinesShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        p.move(to: CGPoint(x: rect.minX, y: rect.minY))
+        p.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+        p.move(to: CGPoint(x: rect.minX, y: rect.maxY))
+        p.addLine(to: CGPoint(x: rect.minX + rect.width * 0.65, y: rect.maxY))
+        return p
     }
 }
 
