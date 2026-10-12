@@ -1,35 +1,48 @@
+import Combine
 import Foundation
-import SwiftUI
+import Security
 
-class LicenseManager: ObservableObject {
-    @Published var isActive: Bool {
-        didSet {
-            UserDefaults.standard.set(isActive, forKey: "isKeyAuthorized")
-        }
-    }
-    
-    @Published var message: String? = nil
-    @Published var isBusy: Bool = false
-    @Published var rememberKey: Bool = true
-    @Published var contactOwner: String? = nil
+@MainActor
+final class LicenseManager: ObservableObject {
+    @Published private(set) var expirationDate: Date?
+    @Published private(set) var isActive = false
+    @Published private(set) var isBusy = false
+    @Published private(set) var message: String?
+    @Published private(set) var contactOwner: String?
+    @Published var rememberKey = true
+
+    private let service = "com.VOLCANO.external-ios.activation"
+    private let keyAccount = "license-key"
+    private var lastAttemptAt: Date?
 
     init() {
-        self.isActive = UserDefaults.standard.bool(forKey: "isKeyAuthorized")
+        isActive = hasRememberedKey
+    }
+
+    var hasRememberedKey: Bool { string(for: keyAccount) != nil }
+
+    func beginLaunchSession() {
+        isActive = hasRememberedKey
+        message = isActive ? "Ready to use" : "Key required — enter your access key"
     }
 
     func activate(key: String) {
-        let trimmedKey = key.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedKey.isEmpty else {
-            self.message = "الرجاء إدخال المفتاح!"
+        let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !isBusy else { return }
+        
+        if let lastAttemptAt, Date().timeIntervalSince(lastAttemptAt) < 1 {
+            message = "Please wait a moment before trying again"
             return
         }
-
+        
+        lastAttemptAt = Date()
         isBusy = true
-        message = nil
+        message = "Checking access key..."
 
+        // الاتصال بالسيرفر السحابي على Render
         guard let url = URL(string: "https://keybot1-u5id.onrender.com/verify-key") else {
             isBusy = false
-            message = "رابط السيرفر غير صالح"
+            message = "Invalid server URL"
             return
         }
 
@@ -37,26 +50,27 @@ class LicenseManager: ObservableObject {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        let body: [String: String] = ["key": trimmedKey]
+        let body: [String: String] = ["key": trimmed]
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body, options: [])
         } catch {
             isBusy = false
-            message = "خطأ في تجهيز البيانات"
+            message = "Failed to prepare request data"
             return
         }
 
-        URLSession.shared.dataTask(with: request) { data, response, error in
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
             DispatchQueue.main.async {
+                guard let self else { return }
                 self.isBusy = false
 
                 if let error = error {
-                    self.message = "خطأ في الاتصال بالسيرفر: \(error.localizedDescription)"
+                    self.message = "Connection error: \(error.localizedDescription)"
                     return
                 }
 
                 guard let data = data else {
-                    self.message = "لم يتم استقبال استجابة من السيرفر"
+                    self.message = "No response from server"
                     return
                 }
 
@@ -65,21 +79,74 @@ class LicenseManager: ObservableObject {
                        let success = json["success"] as? Bool {
                         
                         if success {
-                            // ✅ تم التحقق وفتح التطبيق بنجاح
+                            // ✅ المفتاح صحيح
+                            if self.rememberKey {
+                                self.save(trimmed, for: self.keyAccount)
+                            }
                             self.isActive = true
-                            self.message = nil
+                            self.message = "Activated successfully"
                         } else {
-                            // ❌ المفتاح غير صحيح أو منتهي
-                            let serverMessage = json["message"] as? String ?? "المفتاح غير صحيح"
-                            self.message = serverMessage
+                            // ❌ المفتاح خطأ أو مستخدم
+                            self.isActive = false
+                            let serverMsg = json["message"] as? String ?? "Invalid access key"
+                            self.message = serverMsg
                         }
                     } else {
-                        self.message = "رد غير متوقع من السيرفر"
+                        self.message = "Unexpected server response"
                     }
                 } catch {
-                    self.message = "فشل في قراءة بيانات السيرفر"
+                    self.message = "Failed to parse server response"
                 }
             }
         }.resume()
+    }
+
+    func rememberedKey() -> String? { string(for: keyAccount) }
+
+    func refresh() {
+        isActive = hasRememberedKey
+        message = isActive ? "Ready to use" : "Key required — enter your access key"
+    }
+
+    func deactivate() {
+        delete(keyAccount)
+        isActive = false
+        message = "Activation removed from this device"
+    }
+
+    private func string(for account: String) -> String? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+        var result: CFTypeRef?
+        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
+              let data = result as? Data else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    private func save(_ value: String, for account: String) {
+        let base: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account
+        ]
+        SecItemDelete(base as CFDictionary)
+        var item = base
+        item[kSecValueData as String] = Data(value.utf8)
+        item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        SecItemAdd(item as CFDictionary, nil)
+    }
+
+    private func delete(_ account: String) {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account
+        ]
+        SecItemDelete(query as CFDictionary)
     }
 }
