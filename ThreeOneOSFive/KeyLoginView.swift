@@ -66,7 +66,7 @@ struct KeyLoginView: View {
         statusMessage = ""
 
         // ضع هنا رابط السيرفر الخاص بك الذي يستضيف الـ API
-        guard let url = URL(string: "https://your-server-url.com/verify-key") else {
+        guard let url = URL(string: "https://keybot1-u5id.onrender.com") else {
             isLoading = false
             statusMessage = "رابط الخادم غير صالح"
             return
