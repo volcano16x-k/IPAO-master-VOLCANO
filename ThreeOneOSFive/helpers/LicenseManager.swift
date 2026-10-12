@@ -16,14 +16,16 @@ final class LicenseManager: ObservableObject {
     private var lastAttemptAt: Date?
 
     init() {
+        // إجبار التطبيق على البدء بواجهة إدخال المفتاح دائماً لمنع الاختفاء المفاجئ
         isActive = false
     }
 
     var hasRememberedKey: Bool { string(for: keyAccount) != nil }
 
     func beginLaunchSession() {
-        isActive = hasRememberedKey
-        message = isActive ? "Ready to use" : "Key required — enter your access key"
+        // الحفاظ على حالة عدم التفعيل حتى يدخل المستخدم المفتاح الصحيح
+        isActive = false
+        message = "Key required — enter your access key"
     }
 
     func activate(key: String) {
@@ -39,7 +41,7 @@ final class LicenseManager: ObservableObject {
         isBusy = true
         message = "Checking access key..."
 
-        // الاتصال بالسيرفر السحابي على Render
+        // الاتصال بسيرفرك السحابي على Render
         guard let url = URL(string: "https://keybot1-u5id.onrender.com/verify-key") else {
             isBusy = false
             message = "Invalid server URL"
@@ -79,14 +81,14 @@ final class LicenseManager: ObservableObject {
                        let success = json["success"] as? Bool {
                         
                         if success {
-                            // ✅ المفتاح صحيح
+                            // ✅ المفتاح صحيح، يتم تفعيل الدخول وفتح التطبيق
                             if self.rememberKey {
                                 self.save(trimmed, for: self.keyAccount)
                             }
                             self.isActive = true
                             self.message = "Activated successfully"
                         } else {
-                            // ❌ المفتاح خطأ أو مستخدم
+                            // ❌ المفتاح خطأ أو مستخدم مسبقاً
                             self.isActive = false
                             let serverMsg = json["message"] as? String ?? "Invalid access key"
                             self.message = serverMsg
@@ -104,8 +106,8 @@ final class LicenseManager: ObservableObject {
     func rememberedKey() -> String? { string(for: keyAccount) }
 
     func refresh() {
-        isActive = hasRememberedKey
-        message = isActive ? "Ready to use" : "Key required — enter your access key"
+        isActive = false
+        message = "Key required — enter your access key"
     }
 
     func deactivate() {
