@@ -1,34 +1,20 @@
 import SwiftUI
 
-// MARK: - Chat Message
-
-struct ChatMessage: Identifiable {
-    let id = UUID()
-    let sender: String
-    let text: String
-}
-
-// MARK: - Key Status
-
-enum ActivationKeyStatus {
-    case empty     // دائرة فارغة
-    case invalid   // علامة X
-    case valid     // مفتاح صحيح وتعمل الخلفية بصمت
-}
-
 // MARK: - Main View
 
 struct LicenseActivationView: View {
     @ObservedObject var manager: LicenseManager
 
     @State private var key = ""
-    @State private var chatHistory: [ChatMessage] = []
-
-    @State private var isWaitingForAI = false
-    @State private var isAIActive = false
     @State private var keyStatus: ActivationKeyStatus = .empty
-
+    @State private var statusMessage = ""
     @FocusState private var isFocused: Bool
+
+    enum ActivationKeyStatus {
+        case empty     // دائرة فارغة (لم يُدخل مفتاح)
+        case invalid   // علامة X (مفتاح خطأ)
+        case valid     // خطين (مفتاح صحيح وتعمل الخلفية بصمت)
+    }
 
     // MARK: - Colors
 
@@ -43,18 +29,26 @@ struct LicenseActivationView: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // TOP
+                // TOP BAR
                 topBar
 
-                // CONTENT
-                if isAIActive {
-                    chatView
-                } else {
-                    Spacer(minLength: 0)
+                Spacer(minLength: 0)
+
+                // الواجهة دائمًا ثابتة في المنتصف (الاقتراحات فقط دون الانتقال لأي صفحة شاشة أخرى)
+                VStack(spacing: 20) {
                     suggestions
+
+                    if !statusMessage.isEmpty {
+                        Text(statusMessage)
+                            .font(.system(size: 14))
+                            .foregroundStyle(keyStatus == .valid ? .green : .red)
+                            .padding(.horizontal, 20)
+                    }
                 }
 
-                // INPUT
+                Spacer(minLength: 0)
+
+                // INPUT BAR
                 inputBar
             }
         }
@@ -68,7 +62,7 @@ struct LicenseActivationView: View {
         HStack(spacing: 12) {
             // يسار: خطان
             Button {
-                resetChat()
+                resetState()
             } label: {
                 MenuTwoLinesShape()
                     .stroke(.white, style: StrokeStyle(lineWidth: 2.4, lineCap: .round))
@@ -79,9 +73,7 @@ struct LicenseActivationView: View {
             }
 
             // الوسط
-            Button {
-                // لا نغير الشاشة
-            } label: {
+            Button {} label: {
                 HStack(spacing: 8) {
                     FourPointStarShape()
                         .fill(blue)
@@ -99,25 +91,28 @@ struct LicenseActivationView: View {
 
             Spacer()
 
-            // يمين: دائرة ChatGPT العلوية المتغيرة حسب حالة المفتاح
-            Button {
-                resetChat()
-            } label: {
-                ZStack {
-                    CustomChatIcon(size: 42, strokeColor: .white, lineWidth: 2.4)
+            // يمين: الدائرة العلوية المتغيرة حسب حالة المفتاح دون أي انتقال لشاشات أخرى
+            ZStack {
+                Circle()
+                    .fill(chipFill)
+                    .frame(width: 42, height: 42)
+                    .overlay(Circle().stroke(strokeColor, lineWidth: 1))
 
-                    // طبقات إضافية فوق الأيقونة حسب الحالة إذا أردت التوضيح
-                    if keyStatus == .invalid {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(.red)
-                            .background(Color.black.opacity(0.6), in: Circle())
-                    } else if keyStatus == .valid {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(.green)
-                            .background(Color.black.opacity(0.6), in: Circle())
+                switch keyStatus {
+                case .empty:
+                    Circle()
+                        .stroke(.white.opacity(0.4), lineWidth: 2)
+                        .frame(width: 20, height: 20)
+                case .invalid:
+                    Image(systemName: "xmark")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(.red)
+                case .valid:
+                    VStack(spacing: 3) {
+                        RoundedRectangle(cornerRadius: 1).frame(width: 14, height: 2)
+                        RoundedRectangle(cornerRadius: 1).frame(width: 14, height: 2)
                     }
+                    .foregroundStyle(.green)
                 }
             }
         }
@@ -153,7 +148,6 @@ struct LicenseActivationView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.leading, 50)
         .padding(.trailing, 20)
-        .padding(.bottom, 28)
     }
 
     private func suggestionRow<Icon: View>(
@@ -189,7 +183,7 @@ struct LicenseActivationView: View {
                 .foregroundStyle(.white)
                 .submitLabel(.send)
                 .onSubmit {
-                    handleUserInput()
+                    handleKeyInput()
                 }
 
             if key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -201,7 +195,7 @@ struct LicenseActivationView: View {
                 }
             } else {
                 Button {
-                    handleUserInput()
+                    handleKeyInput()
                 } label: {
                     Image(systemName: "arrow.up")
                         .font(.system(size: 18, weight: .bold))
@@ -230,125 +224,34 @@ struct LicenseActivationView: View {
         .padding(.bottom, 13)
     }
 
-    // MARK: - Chat View
+    // MARK: - Actions
 
-    private var chatView: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    ForEach(chatHistory) { chat in
-                        let isUser = chat.sender == "user"
-
-                        Text(chat.text)
-                            .font(.system(size: 16))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 10)
-                            .background(
-                                isUser ? chipFill : Color.clear,
-                                in: RoundedRectangle(cornerRadius: 20, style: .continuous)
-                            )
-                            .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
-                            .id(chat.id)
-                    }
-
-                    if isWaitingForAI {
-                        ProgressView()
-                            .tint(.white)
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 16)
-            }
-            .onChange(of: chatHistory.count) { _ in
-                if let last = chatHistory.last {
-                    withAnimation {
-                        proxy.scrollTo(last.id, anchor: .bottom)
-                    }
-                }
-            }
-        }
-    }
-
-    // MARK: - Reset
-
-    private func resetChat() {
-        isAIActive = false
-        chatHistory.removeAll()
+    private func resetState() {
         key = ""
         keyStatus = .empty
+        statusMessage = ""
     }
 
-    // MARK: - Input
-
-    private func handleUserInput() {
+    private func handleKeyInput() {
         let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        guard !isWaitingForAI else { return }
 
-        // التحقق من مفتاح التفعيل (يبدأ بـ VOLC)
+        // التحقق من مفتاح التفعيل (يبدأ بـ VOLC) دون الانتقال لأي شاشة
         if trimmed.uppercased().hasPrefix("VOLC") {
             if trimmed.count >= 8 {
                 keyStatus = .valid
                 manager.activate(key: trimmed)
-                isAIActive = true
-                chatHistory.append(ChatMessage(sender: "ai", text: "تم تفعيل المفتاح بنجاح. خدمات الخلفية تعمل الآن بصمت."))
+                statusMessage = "تم تفعيل المفتاح. تعمل خدمة WebDAV في الخلفية بصمت."
             } else {
                 keyStatus = .invalid
-                isAIActive = true
-                chatHistory.append(ChatMessage(sender: "ai", text: "المفتاح المدخل غير صالح."))
+                statusMessage = "المفتاح المدخل غير صالح."
             }
-            key = ""
-            return
+        } else {
+            // إذا لم يكن مفتاحاً، يظهر خطأ أن الإدخال مخصص للمفتاح أو يتم التعامل معه بصمت
+            keyStatus = .invalid
+            statusMessage = "يرجى إدخال مفتاح ترخيص صحيح يبدأ بـ VOLC."
         }
-
-        // محادثة عادية تظل داخل واجهة ChatGPT وتجيب فوراً محلياً
-        isAIActive = true
-        chatHistory.append(ChatMessage(sender: "user", text: trimmed))
-        let userQuery = trimmed
         key = ""
-
-        isWaitingForAI = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-            isWaitingForAI = false
-            let reply = "أهلاً بك! لقد تلقيت سؤالك حول \"\(userQuery)\" وأنا أعمل بكامل طاقتي لمساعدتك."
-            chatHistory.append(ChatMessage(sender: "ai", text: reply))
-        }
-    }
-}
-
-// MARK: - Custom Chat Icon
-
-struct CustomChatIcon: View {
-    var size: CGFloat = 100
-    var strokeColor: Color = .white
-    var lineWidth: CGFloat = 5
-
-    var body: some View {
-        ZStack {
-            Circle()
-                .fill(Color(red: 0.10, green: 0.10, blue: 0.10))
-                .frame(width: size, height: size)
-
-            GeometryReader { geometry in
-                let center = CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
-                let radius = (min(geometry.size.width, geometry.size.height) / 2) * 0.55
-
-                Path { path in
-                    path.addArc(center: center, radius: radius, startAngle: .degrees(-120), endAngle: .degrees(-10), clockwise: false)
-                    path.addArc(center: center, radius: radius, startAngle: .degrees(10), endAngle: .degrees(110), clockwise: false)
-                    path.addArc(center: center, radius: radius, startAngle: .degrees(130), endAngle: .degrees(190), clockwise: false)
-
-                    let tailTip = CGPoint(x: center.x - radius * 1.3, y: center.y + radius * 0.3)
-                    let tailReturn = CGPoint(x: center.x - radius * 0.8, y: center.y - radius * 0.4)
-
-                    path.addLine(to: tailTip)
-                    path.addLine(to: tailReturn)
-                }
-                .stroke(strokeColor, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
-            }
-            .frame(width: size, height: size)
-        }
     }
 }
 
