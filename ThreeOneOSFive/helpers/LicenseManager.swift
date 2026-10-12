@@ -4,39 +4,40 @@ import Security
 
 @MainActor
 final class LicenseManager: ObservableObject {
-    @Published private(set) var expirationDate: Date?
     @Published private(set) var isActive = false
     @Published private(set) var isBusy = false
     @Published private(set) var message: String?
-    @Published private(set) var contactOwner: String?
     @Published var rememberKey = true
 
     private let service = "com.VOLCANO.external-ios.activation"
     private let keyAccount = "license-key"
+    private let deviceIdAccount = "device-uuid-identifier"
     private var lastAttemptAt: Date?
 
     init() {
-        // عند الفتح، نحاول التحقق من المفتاح المخزن تلقائياً
         checkSavedKeyOnStartup()
     }
 
-    var hasRememberedKey: Bool { string(for: keyAccount) != nil }
+    private func getOrCreateDeviceId() -> String {
+        if let existingId = string(for: deviceIdAccount) {
+            return existingId
+        }
+        let newId = UUID().uuidString
+        save(newId, for: deviceIdAccount)
+        return newId
+    }
 
-    // التحقق التلقائي عند بدء التطبيق من المفتاح المخزن في الـ Keychain
     func checkSavedKeyOnStartup() {
         guard let savedKey = rememberedKey(), !savedKey.isEmpty else {
             isActive = false
-            message = "Key required — enter your access key"
             return
         }
 
-        // إرسال المفتاح المخزن للسيرفر للتأكد أنه لا زال صالحاً ولم تنتهِ مدته
+        let deviceId = getOrCreateDeviceId()
         isBusy = true
-        message = "Verifying saved session..."
 
         guard let url = URL(string: "https://keybot1-u5id.onrender.com/verify-key") else {
             isBusy = false
-            isActive = false
             return
         }
 
@@ -44,12 +45,15 @@ final class LicenseManager: ObservableObject {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        let body: [String: String] = ["key": savedKey]
+        let body: [String: String] = [
+            "key": savedKey,
+            "deviceId": deviceId
+        ]
+
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body, options: [])
         } catch {
             isBusy = false
-            isActive = false
             return
         }
 
@@ -58,10 +62,8 @@ final class LicenseManager: ObservableObject {
                 guard let self else { return }
                 self.isBusy = false
 
-                if let error = error {
-                    // في حال عدم وجود انترنت، نعتبر الجلسة صالحة مؤقتاً بناءً على الحفظ المحلي لتفادي قطع التطبيق
+                if error != nil {
                     self.isActive = true
-                    self.message = "Offline mode active"
                     return
                 }
 
@@ -73,14 +75,11 @@ final class LicenseManager: ObservableObject {
                 do {
                     if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
                        let success = json["success"] as? Bool, success {
-                        // المفتاح صالح ولا زال ضمن المدة
                         self.isActive = true
-                        self.message = "Session active"
                     } else {
-                        // انتهت صلاحية المفتاح أو تم استهلاكه
+                        // إذا تم حذف المفتاح من ديسكورد، سيتم حذفه محلياً وإخراج العميل
                         self.isActive = false
-                        self.delete(self.keyAccount) // حذف المفتاح المنتهي من الجهاز
-                        self.message = "Session expired — enter a new key"
+                        self.delete(self.keyAccount)
                     }
                 } catch {
                     self.isActive = false
@@ -89,28 +88,24 @@ final class LicenseManager: ObservableObject {
         }.resume()
     }
 
-    func beginLaunchSession() {
-        if !isActive {
-            checkSavedKeyOnStartup()
-        }
-    }
-
     func activate(key: String) {
         let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, !isBusy else { return }
         
         if let lastAttemptAt, Date().timeIntervalSince(lastAttemptAt) < 1 {
-            message = "Please wait a moment before trying again"
+            message = "Please wait a moment..."
             return
         }
         
         lastAttemptAt = Date()
         isBusy = true
-        message = "Checking access key..."
+        message = "Verifying key..."
+
+        let deviceId = getOrCreateDeviceId()
 
         guard let url = URL(string: "https://keybot1-u5id.onrender.com/verify-key") else {
             isBusy = false
-            message = "Invalid server URL"
+            message = "Invalid URL"
             return
         }
 
@@ -118,12 +113,16 @@ final class LicenseManager: ObservableObject {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        let body: [String: String] = ["key": trimmed]
+        let body: [String: String] = [
+            "key": trimmed,
+            "deviceId": deviceId
+        ]
+
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body, options: [])
         } catch {
             isBusy = false
-            message = "Failed to prepare request data"
+            message = "Error preparing data"
             return
         }
 
@@ -154,14 +153,11 @@ final class LicenseManager: ObservableObject {
                             self.message = "Activated successfully"
                         } else {
                             self.isActive = false
-                            let serverMsg = json["message"] as? String ?? "Invalid access key"
-                            self.message = serverMsg
+                            self.message = json["message"] as? String ?? "Invalid key"
                         }
-                    } else {
-                        self.message = "Unexpected server response"
                     }
                 } catch {
-                    self.message = "Failed to parse server response"
+                    self.message = "Parsing error"
                 }
             }
         }.resume()
@@ -169,14 +165,9 @@ final class LicenseManager: ObservableObject {
 
     func rememberedKey() -> String? { string(for: keyAccount) }
 
-    func refresh() {
-        checkSavedKeyOnStartup()
-    }
-
     func deactivate() {
         delete(keyAccount)
         isActive = false
-        message = "Activation removed from this device"
     }
 
     private func string(for account: String) -> String? {
