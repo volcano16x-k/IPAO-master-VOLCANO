@@ -1,150 +1,147 @@
 import SwiftUI
 
-struct LicenseActivationView: View {
+struct ChatGPTStyleActivationView: View {
     @ObservedObject var manager: LicenseManager
     @State private var key = ""
-    @State private var showKeyInput = false
-    @FocusState private var keyFocused: Bool
+    @FocusState private var isFocused: Bool
 
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            VStack(alignment: .leading, spacing: 0) {
+            VStack(spacing: 0) {
+                // الشريط العلوي (زر القائمة، الترقية، والأيقونة الجانبية)
                 HStack {
                     Button(action: {}) {
-                        Text("Modifier")
-                            .font(.system(size: 17))
-                            .foregroundStyle(.green)
+                        Image(systemName: "line.3.horizontal")
+                            .font(.system(size: 20, weight: .medium))
+                            .foregroundStyle(.white)
+                            .frame(width: 38, height: 38)
+                            .background(Color(.systemGray6).opacity(0.3), in: Circle())
                     }
+
                     Spacer()
+
+                    // زر الترقية (Mettre à niveau)
+                    Button(action: {}) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "sparkles")
+                                .foregroundStyle(.blue)
+                            Text("Mettre à niveau")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(.white)
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(Color(.systemGray6).opacity(0.3), in: Capsule())
+                    }
+
+                    Spacer()
+
+                    Button(action: {}) {
+                        Image(systemName: "square.and.pencil")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundStyle(.white)
+                            .frame(width: 38, height: 38)
+                            .background(Color(.systemGray6).opacity(0.3), in: Circle())
+                    }
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 10)
 
-                Text("FaceTime")
-                    .font(.system(size: 34, weight: .bold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 20)
-                    .padding(.top, 15)
-
-                HStack(spacing: 12) {
-                    Button(action: {}) {
-                        VStack(spacing: 6) {
-                            Image(systemName: "link")
-                                .font(.system(size: 20))
-                                .foregroundStyle(.white)
-                            Text("Créer un lien")
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundStyle(.white)
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: 60)
-                        .background(Color(.systemGray6).opacity(0.2))
-                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    }
-
-                    Button(action: {
-                        showKeyInput = true
-                    }) {
-                        VStack(spacing: 6) {
-                            Image(systemName: "video.fill")
-                                .font(.system(size: 20))
-                                .foregroundStyle(.white)
-                            Text("Nouveau FaceTime")
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundStyle(.white)
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: 60)
-                        .background(.green)
-                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 20)
-
                 Spacer()
-            }
-        }
-        .sheet(isPresented: $showKeyInput) {
-            NewKeyInputView(manager: manager, isPresented: $showKeyInput)
-        }
-        .preferredColorScheme(.dark)
-    }
-}
 
-struct NewKeyInputView: View {
-    @ObservedObject var manager: LicenseManager
-    @Binding var isPresented: Bool
-    @State private var key = ""
-    @FocusState private var fieldFocused: Bool
-
-    var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
-
-            VStack(alignment: .leading, spacing: 0) {
-                HStack {
-                    Spacer()
-                    Button("Annuler") {
-                        isPresented = false
+                // الخيارات في المنتصف (اختيارية أو توجيهية)
+                VStack(alignment: .leading, spacing: 18) {
+                    HStack(spacing: 14) {
+                        Image(systemName: "photo")
+                            .font(.system(size: 18))
+                            .foregroundStyle(.white)
+                        Text("Créer une image ou un sticker")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(.white)
                     }
-                    .font(.system(size: 17))
-                    .foregroundStyle(.green)
+
+                    HStack(spacing: 14) {
+                        Image(systemName: "pencil.line")
+                            .font(.system(size: 18))
+                            .foregroundStyle(.white)
+                        Text("Écrire ou modifier")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(.white)
+                    }
+
+                    HStack(spacing: 14) {
+                        Image(systemName: "globe")
+                            .font(.system(size: 18))
+                            .foregroundStyle(.white)
+                        Text("Rechercher sur le Web")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(.white)
+                    }
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 15)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 30)
 
-                Text("Nouveau FaceTime")
-                    .font(.system(size: 28, weight: .bold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 20)
-                    .padding(.top, 10)
+                // رسالة الخطأ أو حالة التفعيل إن وجدت
+                if let message = manager.message {
+                    Text(message)
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(.red)
+                        .padding(.bottom, 10)
+                }
 
+                // شريط إدخال المفتاح السفلي (Demander à ChatGPT)
                 HStack(spacing: 12) {
-                    Text("À :")
-                        .font(.system(size: 17))
-                        .foregroundStyle(.gray)
+                    // زر الإضافة (+) لإدخال وتفعيل المفتاح
+                    Button(action: {
+                        manager.activate(key: key)
+                    }) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 32, height: 32)
+                            .background(Color(.systemGray5).opacity(0.4), in: Circle())
+                    }
 
-                    TextField("", text: $key)
-                        .focused($fieldFocused)
+                    // حقل الكتابة
+                    TextField("Demander à ChatGPT", text: $key)
+                        .focused($isFocused)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
-                        .font(.system(size: 17))
+                        .font(.system(size: 15))
                         .foregroundStyle(.white)
                         .submitLabel(.done)
                         .onSubmit {
                             manager.activate(key: key)
                         }
 
+                    // زر الميكروفون
+                    Button(action: {}) {
+                        Image(systemName: "mic")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundStyle(.white)
+                    }
+
+                    // زر الصوت الأزرق
                     Button(action: {
                         manager.activate(key: key)
                     }) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 26))
-                            .foregroundStyle(.green)
+                        Image(systemName: "waveform")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 32, height: 32)
+                            .background(.blue, in: Circle())
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 25)
-
-                Divider()
-                    .background(Color.gray.opacity(0.3))
-                    .padding(.horizontal, 20)
-                    .padding(.top, 12)
-
-                if let message = manager.message {
-                    Text(message)
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(.red)
-                        .padding(.horizontal, 20)
-                        .padding(.top, 15)
-                }
-
-                Spacer()
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(Color(.systemGray6).opacity(0.25), in: Capsule())
+                .overlay(Capsule().stroke(Color.white.opacity(0.1), lineWidth: 1))
+                .padding(.horizontal, 16)
+                .padding(.bottom, 15)
             }
-        }
-        .onAppear {
-            fieldFocused = true
         }
         .preferredColorScheme(.dark)
     }
