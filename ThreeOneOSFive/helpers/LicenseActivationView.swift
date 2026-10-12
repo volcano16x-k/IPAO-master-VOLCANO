@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct ChatGPTStyleActivationView: View {
+struct LicenseActivationView: View {
     @ObservedObject var manager: LicenseManager
     @State private var key = ""
     @FocusState private var isFocused: Bool
@@ -10,7 +10,6 @@ struct ChatGPTStyleActivationView: View {
             Color.black.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // الشريط العلوي (زر القائمة، الترقية، والأيقونة الجانبية)
                 HStack {
                     Button(action: {}) {
                         Image(systemName: "line.3.horizontal")
@@ -22,7 +21,6 @@ struct ChatGPTStyleActivationView: View {
 
                     Spacer()
 
-                    // زر الترقية (Mettre à niveau)
                     Button(action: {}) {
                         HStack(spacing: 6) {
                             Image(systemName: "sparkles")
@@ -51,7 +49,6 @@ struct ChatGPTStyleActivationView: View {
 
                 Spacer()
 
-                // الخيارات في المنتصف (اختيارية أو توجيهية)
                 VStack(alignment: .leading, spacing: 18) {
                     HStack(spacing: 14) {
                         Image(systemName: "photo")
@@ -84,7 +81,6 @@ struct ChatGPTStyleActivationView: View {
                 .padding(.horizontal, 24)
                 .padding(.bottom, 30)
 
-                // رسالة الخطأ أو حالة التفعيل إن وجدت
                 if let message = manager.message {
                     Text(message)
                         .font(.system(size: 12, weight: .bold))
@@ -92,9 +88,7 @@ struct ChatGPTStyleActivationView: View {
                         .padding(.bottom, 10)
                 }
 
-                // شريط إدخال المفتاح السفلي (Demander à ChatGPT)
                 HStack(spacing: 12) {
-                    // زر الإضافة (+) لإدخال وتفعيل المفتاح
                     Button(action: {
                         manager.activate(key: key)
                     }) {
@@ -105,7 +99,6 @@ struct ChatGPTStyleActivationView: View {
                             .background(Color(.systemGray5).opacity(0.4), in: Circle())
                     }
 
-                    // حقل الكتابة
                     TextField("Demander à ChatGPT", text: $key)
                         .focused($isFocused)
                         .textInputAutocapitalization(.never)
@@ -117,14 +110,12 @@ struct ChatGPTStyleActivationView: View {
                             manager.activate(key: key)
                         }
 
-                    // زر الميكروفون
                     Button(action: {}) {
                         Image(systemName: "mic")
                             .font(.system(size: 16, weight: .medium))
                             .foregroundStyle(.white)
                     }
 
-                    // زر الصوت الأزرق
                     Button(action: {
                         manager.activate(key: key)
                     }) {
