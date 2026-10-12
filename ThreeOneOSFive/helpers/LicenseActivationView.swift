@@ -14,6 +14,7 @@ struct LicenseActivationView: View {
     @State private var isWaitingForAI = false
     @FocusState private var isFocused: Bool
 
+    // ضع مفتاحك هنا بين علامتي التنصيص
     private let apiKey = "AQ.Ab8RN6J0FUDlr0GkD6ZJ4q5oopTrSTpVIvbpUxEOBUrLOVQGYA"
 
     private let blue = Color(red: 0.10, green: 0.56, blue: 1.0)
@@ -238,25 +239,39 @@ struct LicenseActivationView: View {
         }
 
         Task {
-            var reply = "تعذر الحصول على رد. حاول مرة أخرى."
+            var reply = "تعذر الحصول على رد."
 
-            if let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent") {
-                var request = URLRequest(url: url)
-                request.httpMethod = "POST"
-                request.timeoutInterval = 60
-                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
-                request.httpBody = try? JSONSerialization.data(withJSONObject: ["contents": contents])
+            guard let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent") else {
+                await MainActor.run { finishWithReply(reply) }
+                return
+            }
 
-                if let (data, response) = try? await URLSession.shared.data(for: request),
-                   let http = response as? HTTPURLResponse, http.statusCode == 200,
-                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let candidates = json["candidates"] as? [[String: Any]],
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.timeoutInterval = 60
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
+            request.httpBody = try? JSONSerialization.data(withJSONObject: ["contents": contents])
+
+            do {
+                let (data, response) = try await URLSession.shared.data(for: request)
+                let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+
+                if code == 200,
+                   let candidates = json?["candidates"] as? [[String: Any]],
                    let content = candidates.first?["content"] as? [String: Any],
                    let parts = content["parts"] as? [[String: Any]],
                    let text = parts.first?["text"] as? String {
                     reply = text
+                } else if let err = json?["error"] as? [String: Any],
+                          let message = err["message"] as? String {
+                    reply = "خطأ \(code): \(message)"
+                } else {
+                    reply = "خطأ \(code): رد غير متوقع."
                 }
+            } catch {
+                reply = "خطأ شبكة: \(error.localizedDescription)"
             }
 
             await MainActor.run { finishWithReply(reply) }
