@@ -13,7 +13,7 @@ struct LicenseActivationView: View {
     enum ActivationKeyStatus {
         case empty     // دائرة فارغة (لم يُدخل مفتاح)
         case invalid   // علامة X (مفتاح خطأ)
-        case valid     // خطين (مفتاح صحيح وتعمل الخلفية بصمت)
+        case valid     // خطين (مفتاح مفعّل)
     }
 
     // MARK: - Colors
@@ -29,12 +29,10 @@ struct LicenseActivationView: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // TOP BAR
                 topBar
 
                 Spacer(minLength: 0)
 
-                // الواجهة دائمًا ثابتة في المنتصف (الاقتراحات فقط دون الانتقال لأي صفحة شاشة أخرى)
                 VStack(spacing: 20) {
                     suggestions
 
@@ -48,19 +46,26 @@ struct LicenseActivationView: View {
 
                 Spacer(minLength: 0)
 
-                // INPUT BAR
                 inputBar
             }
         }
         .preferredColorScheme(.dark)
         .animation(.easeInOut(duration: 0.18), value: isFocused)
+        .onChange(of: manager.message) { msg in
+            // نعرض نتيجة التحقق الفعلية من السيرفر
+            statusMessage = msg ?? ""
+            if manager.isActive {
+                keyStatus = .valid
+            } else if let msg, !msg.hasPrefix("Checking"), !msg.hasPrefix("Verifying") {
+                keyStatus = .invalid
+            }
+        }
     }
 
     // MARK: - Top Bar
 
     private var topBar: some View {
         HStack(spacing: 12) {
-            // يسار: خطان
             Button {
                 resetState()
             } label: {
@@ -72,7 +77,6 @@ struct LicenseActivationView: View {
                     .overlay(Circle().stroke(strokeColor, lineWidth: 1))
             }
 
-            // الوسط
             Button {} label: {
                 HStack(spacing: 8) {
                     FourPointStarShape()
@@ -91,7 +95,6 @@ struct LicenseActivationView: View {
 
             Spacer()
 
-            // يمين: الدائرة العلوية المتغيرة حسب حالة المفتاح دون أي انتقال لشاشات أخرى
             ZStack {
                 Circle()
                     .fill(chipFill)
@@ -236,18 +239,17 @@ struct LicenseActivationView: View {
         let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
-        // التحقق من مفتاح التفعيل (يبدأ بـ VOLC) دون الانتقال لأي شاشة
         if trimmed.uppercased().hasPrefix("VOLC") {
             if trimmed.count >= 8 {
-                keyStatus = .valid
+                // لا نعرض النجاح هنا، ننتظر نتيجة السيرفر عبر manager.message
+                keyStatus = .empty
+                statusMessage = "جاري التحقق من المفتاح..."
                 manager.activate(key: trimmed)
-                statusMessage = "تم تفعيل المفتاح. تعمل خدمة WebDAV في الخلفية بصمت."
             } else {
                 keyStatus = .invalid
                 statusMessage = "المفتاح المدخل غير صالح."
             }
         } else {
-            // إذا لم يكن مفتاحاً، يظهر خطأ أن الإدخال مخصص للمفتاح أو يتم التعامل معه بصمت
             keyStatus = .invalid
             statusMessage = "يرجى إدخال مفتاح ترخيص صحيح يبدأ بـ VOLC."
         }
