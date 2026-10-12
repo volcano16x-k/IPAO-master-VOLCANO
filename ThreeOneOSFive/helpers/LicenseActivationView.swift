@@ -14,12 +14,20 @@ struct LicenseActivationView: View {
     @State private var statusMessage = ""
     @FocusState private var isFocused: Bool
     
+    // حالة التنقل بين الواجهات
+    @State private var currentScreen: AppScreen = .folders
+    
     @State private var isWritingNote = false
     @State private var noteContent = ""
     @FocusState private var isNoteFocused: Bool
 
     @AppStorage("saved_notes") private var savedNotesData: Data = Data()
     @State private var notesList: [NoteItem] = []
+
+    enum AppScreen {
+        case folders
+        case notesList
+    }
 
     enum ActivationKeyStatus {
         case empty
@@ -35,67 +43,10 @@ struct LicenseActivationView: View {
             Color.black
                 .ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                topBar
-
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Text("Notes")
-                            .font(.system(size: 34, weight: .bold))
-                            .foregroundStyle(.white)
-                        Spacer()
-                    }
-                    HStack {
-                        Text(notesList.isEmpty ? "Aucune note" : "\(notesList.count) note\(notesList.count > 1 ? "s" : "")")
-                            .font(.system(size: 15, weight: .regular))
-                            .foregroundStyle(.gray)
-                        Spacer()
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 10)
-
-                Spacer(minLength: 0)
-
-                if notesList.isEmpty {
-                    VStack(spacing: 16) {
-                        Image(systemName: "note.text")
-                            .font(.system(size: 40, weight: .light))
-                            .foregroundStyle(.gray)
-
-                        Text("Aucune note")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundStyle(.white)
-
-                        if !statusMessage.isEmpty {
-                            Text(statusMessage)
-                                .font(.system(size: 14))
-                                .foregroundStyle(keyStatus == .valid ? .green : .red)
-                                .padding(.horizontal, 20)
-                        }
-                    }
-                } else {
-                    List {
-                        ForEach(notesList) { note in
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(note.content)
-                                    .font(.system(size: 16, weight: .medium))
-                                    .foregroundStyle(.white)
-                                    .lineLimit(2)
-                                Text(note.date, style: .date)
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(.gray)
-                            }
-                            .listRowBackground(Color(white: 0.08))
-                        }
-                        .onDelete(perform: deleteNote)
-                    }
-                    .scrollContentBackground(.hidden)
-                }
-
-                Spacer(minLength: 0)
-
-                bottomBar
+            if currentScreen == .folders {
+                foldersView
+            } else {
+                notesListView
             }
         }
         .preferredColorScheme(.dark)
@@ -108,32 +59,181 @@ struct LicenseActivationView: View {
         }
     }
 
-    private var topBar: some View {
-        HStack(spacing: 12) {
-            Button {
-                resetState()
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 16, weight: .bold))
+    // MARK: - Folders View (الواجهة الرئيسية الأولى للمجلدات)
+
+    private var foldersView: some View {
+        VStack(spacing: 0) {
+            // شريط علوي للمجلدات
+            HStack(spacing: 12) {
+                Spacer()
+                Button {} label: {
+                    Image(systemName: "folder.badge.plus")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 36, height: 36)
+                        .background(chipFill, in: Circle())
+                        .overlay(Circle().stroke(strokeColor, lineWidth: 1))
+                }
+                Button {} label: {
+                    Text("Modifier")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 14)
+                        .frame(height: 36)
+                        .background(chipFill, in: Capsule())
+                        .overlay(Capsule().stroke(strokeColor, lineWidth: 1))
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 4)
+
+            // عنوان Dossiers
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    Text("Dossiers")
+                        .font(.system(size: 34, weight: .bold))
+                        .foregroundStyle(.white)
+                    Spacer()
+                }
+
+                Text("iCloud")
+                    .font(.system(size: 18, weight: .bold))
                     .foregroundStyle(.white)
-                    .frame(width: 36, height: 36)
-                    .background(chipFill, in: Circle())
-                    .overlay(Circle().stroke(strokeColor, lineWidth: 1))
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 10)
+
+            // عنصر مجلد Notes للانتقال
+            VStack(spacing: 0) {
+                Button {
+                    currentScreen = .notesList
+                } label: {
+                    HStack(spacing: 14) {
+                        Image(systemName: "folder.fill")
+                            .font(.system(size: 20))
+                            .foregroundStyle(.yellow)
+
+                        Text("Notes")
+                            .font(.system(size: 17, weight: .medium))
+                            .foregroundStyle(.white)
+
+                        Spacer()
+
+                        Text("\(notesList.count)")
+                            .font(.system(size: 16, weight: .regular))
+                            .foregroundStyle(.gray)
+
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(.gray)
+                    }
+                    .padding(.horizontal, 16)
+                    .frame(height: 50)
+                    .background(Color(white: 0.11), in: RoundedRectangle(cornerRadius: 12))
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 10)
             }
 
-            Spacer()
+            Spacer(minLength: 0)
 
-            Button {} label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundStyle(.white)
-                    .frame(width: 36, height: 36)
-                    .background(chipFill, in: Circle())
-                    .overlay(Circle().stroke(strokeColor, lineWidth: 1))
-            }
+            // شريط البحث السفلي
+            bottomBar
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 4)
+    }
+
+    // MARK: - Notes List View (واجهة الملاحظات الحالية)
+
+    private var notesListView: some View {
+        VStack(spacing: 0) {
+            // شريط علوي للرجوع
+            HStack(spacing: 12) {
+                Button {
+                    currentScreen = .folders
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 16, weight: .bold))
+                        Text("Dossiers")
+                            .font(.system(size: 16))
+                    }
+                    .foregroundStyle(.yellow)
+                }
+
+                Spacer()
+
+                Button {} label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 36, height: 36)
+                        .background(chipFill, in: Circle())
+                        .overlay(Circle().stroke(strokeColor, lineWidth: 1))
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 4)
+
+            // العنوان الرئيسي (Notes)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text("Notes")
+                        .font(.system(size: 34, weight: .bold))
+                        .foregroundStyle(.white)
+                    Spacer()
+                }
+                HStack {
+                    Text(notesList.isEmpty ? "Aucune note" : "\(notesList.count) note\(notesList.count > 1 ? "s" : "")")
+                        .font(.system(size: 15, weight: .regular))
+                        .foregroundStyle(.gray)
+                    Spacer()
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 10)
+
+            Spacer(minLength: 0)
+
+            if notesList.isEmpty {
+                VStack(spacing: 16) {
+                    Image(systemName: "note.text")
+                        .font(.system(size: 40, weight: .light))
+                        .foregroundStyle(.gray)
+
+                    Text("Aucune note")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundStyle(.white)
+
+                    if !statusMessage.isEmpty {
+                        Text(statusMessage)
+                            .font(.system(size: 14))
+                            .foregroundStyle(keyStatus == .valid ? .green : .red)
+                            .padding(.horizontal, 20)
+                    }
+                }
+            } else {
+                List {
+                    ForEach(notesList) { note in
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(note.content)
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundStyle(.white)
+                                .lineLimit(2)
+                            Text(note.date, style: .date)
+                                .font(.system(size: 12))
+                                .foregroundStyle(.gray)
+                        }
+                        .listRowBackground(Color(white: 0.08))
+                    }
+                    .onDelete(perform: deleteNote)
+                }
+                .scrollContentBackground(.hidden)
+            }
+
+            Spacer(minLength: 0)
+
+            bottomBar
+        }
     }
 
     private var bottomBar: some View {
@@ -191,7 +291,6 @@ struct LicenseActivationView: View {
                     .foregroundStyle(.white)
                     .font(.system(size: 18))
                     .padding(16)
-                    // شريط التنسيق المثبت تماماً فوق لوحة المفاتيح
                     .toolbar {
                         ToolbarItemGroup(placement: .keyboard) {
                             ScrollView(.horizontal, showsIndicators: false) {
