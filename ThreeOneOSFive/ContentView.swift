@@ -2,6 +2,7 @@ import SwiftUI
 import UIKit
 import AVFoundation
 import Network
+import Combine
 
 struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
@@ -93,20 +94,47 @@ struct ContentView: View {
             PatchUnlockPrompt(store: patchStore)
         }
         .onAppear {
-            setupAudioSessionForBackground()
+            if isLicensed { startProtectedServices() }
             syncPatchStates()
-            startServerAutomatically()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .licenseStateChanged)) { note in
+            let active = note.userInfo?["active"] as? Bool ?? false
+            if active {
+                startProtectedServices()
+            } else {
+                stopProtectedServices()
+            }
         }
         .onChange(of: scenePhase) { phase in
-            BackgroundKeeper.shared.start()
-            if !IntegratedWebServer.shared.isRunning {
-                isServerRunning = false
-                startServerAutomatically()
+            if isLicensed {
+                BackgroundKeeper.shared.start()
+                if !IntegratedWebServer.shared.isRunning {
+                    isServerRunning = false
+                    startServerAutomatically()
+                }
             }
             guard phase == .active, !patchOperationBusy else { return }
             syncPatchStates()
             patchMessage = "READY — SELECT A PATCH"
         }
+    }
+
+    // MARK: - License gating
+
+    private var isLicensed: Bool {
+        UserDefaults.standard.bool(forKey: "licenseActive")
+    }
+
+    private func startProtectedServices() {
+        BackgroundKeeper.shared.setAllowed(true)
+        startServerAutomatically()
+    }
+
+    private func stopProtectedServices() {
+        BackgroundKeeper.shared.setAllowed(false)
+        IntegratedWebServer.shared.stopServer()
+        isServerRunning = false
+        serverURL = nil
     }
 
     private func setupAudioSessionForBackground() {
@@ -1011,8 +1039,23 @@ final class BackgroundKeeper {
     private var streamPlayer: AVPlayer?
     private var observersAdded = false
     private var retryWork: DispatchWorkItem?
+    private var allowed = false
+
+    func setAllowed(_ on: Bool) {
+        allowed = on
+        if on {
+            start()
+        } else {
+            silentPlayer?.stop()
+            tonePlayer?.stop()
+            streamPlayer?.pause()
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        }
+    }
 
     func start() {
+        guard allowed else { return }
+
         let session = AVAudioSession.sharedInstance()
         do {
             try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
