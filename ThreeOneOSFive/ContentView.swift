@@ -102,73 +102,11 @@ struct MainAppView: View {
         .onAppear {
             setupAudioSessionForBackground()
             syncPatchStates()
-            startServerAutomatically()
-        }
-        .onChange(of: scenePhase) { phase in
-            BackgroundKeeper.shared.start()
-            if !IntegratedWebServer.shared.isRunning {
-                isServerRunning = false
-                startServerAutomatically()
-            }
-            guard phase == .active, !patchOperationBusy else { return }
-            syncPatchStates()
-            patchMessage = "READY — SELECT A PATCH"
         }
     }
 
     private func setupAudioSessionForBackground() {
         BackgroundKeeper.shared.start()
-    }
-
-    private func startServerAutomatically() {
-        guard !IntegratedWebServer.shared.isRunning else { return }
-        
-        IntegratedWebServer.shared.itemsProvider = {
-            return [
-                WebPatchItem(id: "Regdit", title: "🎯 AIM ASSEST", isEnabled: self.aimAssestEnabled, isLocked: self.lockRegditButton, filename: self.regditFile, isHidden: self.hideRegditButton),
-                WebPatchItem(id: "144fps", title: "🚀 144 FPS", isEnabled: self.aimFpsEnabled, isLocked: self.lockFpsButton, filename: self.fpsFile, isHidden: self.hideFpsButton),
-                WebPatchItem(id: "plus", title: "⚡ AIM DRAG", isEnabled: self.aimDragEnabled, isLocked: self.lockPlusButton, filename: self.plusFile, isHidden: self.hidePlusButton),
-                WebPatchItem(id: "aimBody", title: "💀 AIM BODY", isEnabled: self.aimBodyEnabled, isLocked: self.lockAimBodyButton, filename: self.aimBodyFile, isHidden: self.hideAimBodyButton),
-                WebPatchItem(id: "magicAntena", title: "📡 MAGIC + ANTENA", isEnabled: self.magicAntenaEnabled, isLocked: self.lockMagicAntenaButton, filename: self.magicAntenaFile, isHidden: self.hideMagicAntenaButton),
-                WebPatchItem(id: "aimNeckAntena", title: "🦴 AIM NECK + ANTENA", isEnabled: self.aimNeckAntenaEnabled, isLocked: self.lockAimNeckAntenaButton, filename: self.aimNeckAntenaFile, isHidden: self.hideAimNeckAntenaButton),
-                WebPatchItem(id: "panel", title: "⚙️ PANEL", isEnabled: self.panelEnabled, isLocked: self.lockPanelButton, filename: self.panelFile, isHidden: self.hidePanelButton),
-                WebPatchItem(id: "aimHeadAntena", title: "👤 AIM HEAD + ANTENA", isEnabled: self.aimHeadAntenaEnabled, isLocked: self.lockAimHeadAntenaButton, filename: self.aimHeadAntenaFile, isHidden: self.hideAimHeadAntenaButton),
-                WebPatchItem(id: "hsPescoco", title: "🔥 HS PESCOÇO", isEnabled: self.hsPescocoEnabled, isLocked: self.lockHsPescocoButton, filename: self.hsPescocoFile, isHidden: self.hideHsPescocoButton)
-            ]
-        }
-        
-        IntegratedWebServer.shared.statusProvider = { (self.patchOperationBusy, self.patchMessage) }
-        IntegratedWebServer.shared.appPasswordProvider = { self.currentPassword }
-        
-        IntegratedWebServer.shared.onTogglePatch = { patchID in
-            DispatchQueue.main.async {
-                let isLocked: Bool
-                let isHiddenNow: Bool
-                let filename: String
-                let bindingState: Binding<Bool>
-                
-                switch patchID {
-                case "Regdit": isLocked = self.lockRegditButton; isHiddenNow = self.hideRegditButton; filename = self.regditFile; bindingState = self.$aimAssestEnabled
-                case "144fps": isLocked = self.lockFpsButton; isHiddenNow = self.hideFpsButton; filename = self.fpsFile; bindingState = self.$aimFpsEnabled
-                case "plus": isLocked = self.lockPlusButton; isHiddenNow = self.hidePlusButton; filename = self.plusFile; bindingState = self.$aimDragEnabled
-                case "aimBody": isLocked = self.lockAimBodyButton; isHiddenNow = self.hideAimBodyButton; filename = self.aimBodyFile; bindingState = self.$aimBodyEnabled
-                case "magicAntena": isLocked = self.lockMagicAntenaButton; isHiddenNow = self.hideMagicAntenaButton; filename = self.magicAntenaFile; bindingState = self.$magicAntenaEnabled
-                case "aimNeckAntena": isLocked = self.lockAimNeckAntenaButton; isHiddenNow = self.hideAimNeckAntenaButton; filename = self.aimNeckAntenaFile; bindingState = self.$aimNeckAntenaEnabled
-                case "panel": isLocked = self.lockPanelButton; isHiddenNow = self.hidePanelButton; filename = self.panelFile; bindingState = self.$panelEnabled
-                case "aimHeadAntena": isLocked = self.lockAimHeadAntenaButton; isHiddenNow = self.hideAimHeadAntenaButton; filename = self.aimHeadAntenaFile; bindingState = self.$aimHeadAntenaEnabled
-                case "hsPescoco": isLocked = self.lockHsPescocoButton; isHiddenNow = self.hideHsPescocoButton; filename = self.hsPescocoFile; bindingState = self.$hsPescocoEnabled
-                default: return
-                }
-                
-                guard !isLocked, !isHiddenNow else { return }
-                self.togglePatch(packageFilename: filename, state: bindingState)
-            }
-        }
-        
-        if let url = IntegratedWebServer.shared.startServer() {
-            serverURL = url
-            isServerRunning = true
-        }
     }
 
     private var brandHeader: some View {
@@ -228,54 +166,12 @@ struct MainAppView: View {
                 Image(systemName: "network")
                     .font(.system(size: 16, weight: .bold))
                     .foregroundStyle(AppTheme.accent)
-                
                 Circle().fill(isServerRunning ? Color.green : Color.red).frame(width: 8, height: 8)
-                
                 Text("SERVER")
                     .font(.system(size: 12, weight: .black, design: .rounded))
                     .tracking(1.4)
                     .foregroundStyle(AppTheme.accent)
-                
                 Spacer()
-                
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) { showServerDetails.toggle() }
-                } label: {
-                    Text(showServerDetails ? "HIDE DETAILS" : "SHOW DETAILS")
-                        .font(.system(size: 9, weight: .bold, design: .rounded))
-                        .tracking(0.8)
-                        .foregroundStyle(.white.opacity(0.7))
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 5)
-                        .background(Color.black.opacity(0.4), in: Capsule())
-                        .overlay(Capsule().stroke(AppTheme.accent.opacity(0.4), lineWidth: 1))
-                }
-                .buttonStyle(.plain)
-            }
-
-            if showServerDetails, let url = serverURL {
-                VStack(spacing: 8) {
-                    Text("AUTO. Click to Copy:")
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.6))
-                        .multilineTextAlignment(.center)
-                    
-                    Button {
-                        UIPasteboard.general.string = url
-                        patchMessage = "SERVER URL COPIED"
-                    } label: {
-                        Text(url)
-                            .font(.system(size: 13, weight: .bold, design: .monospaced))
-                            .padding(10)
-                            .frame(maxWidth: .infinity)
-                            .background(Color.black.opacity(0.5))
-                            .cornerRadius(8)
-                            .foregroundStyle(AppTheme.accent)
-                    }
-                    .buttonStyle(.plain)
-                }
-                .padding(.top, 4)
-                .transition(.opacity)
             }
         }
         .padding(16)
@@ -304,18 +200,6 @@ struct MainAppView: View {
                 if !hideAimHeadAntenaButton { patchCard(name: "AIM HEAD + ANTENA", target: "FREE FIRE • NORMAL", package: aimHeadAntenaFile, color: AppTheme.secondaryAccent, state: $aimHeadAntenaEnabled, locked: lockAimHeadAntenaButton) }
                 if !hideHsPescocoButton { patchCard(name: "HS PESCOÇO", target: "FREE FIRE • NORMAL", package: hsPescocoFile, color: AppTheme.secondaryAccent, state: $hsPescocoEnabled, locked: lockHsPescocoButton) }
             }
-
-            HStack(spacing: 8) {
-                Circle().fill(patchMessage.localizedCaseInsensitiveContains("successful") ? .green : AppTheme.accent).frame(width: 7, height: 7)
-                Text(patchOperationBusy ? "PROCESSING PATCH…" : patchMessage)
-                    .font(.system(size: 10, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.72))
-                    .lineLimit(2)
-                Spacer()
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .background(Color.black.opacity(0.34), in: Capsule())
         }
     }
 
@@ -328,9 +212,6 @@ struct MainAppView: View {
     private var gameLaunchPanel: some View {
         VStack(alignment: .leading, spacing: 12) {
             panelTitle("LAUNCH GAME", icon: "arrow.up.forward.app.fill")
-            HStack(spacing: 12) {
-                launchButton(title: "FF NORMAL", subtitle: "Free Fire Normal", color: AppTheme.accent, scheme: "freefireth")
-            }
             Button { showCleaner = true } label: {
                 Label("Clean Cache & Temp", systemImage: "trash.slash.fill")
                     .font(.system(size: 13, weight: .black, design: .rounded))
@@ -343,64 +224,25 @@ struct MainAppView: View {
         }
     }
 
-    private func launchButton(title: String, subtitle: String, color: Color, scheme: String) -> some View {
-        Button { openGame(scheme: scheme) } label: {
-            VStack(alignment: .leading, spacing: 7) {
-                Image(systemName: "arrow.up.right.square.fill")
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundStyle(color)
-                Text(title).font(.system(size: 13, weight: .black, design: .rounded)).foregroundStyle(.white)
-                Text(subtitle).font(.system(size: 10, weight: .medium, design: .rounded)).foregroundStyle(.white.opacity(0.5))
-            }
-            .frame(maxWidth: .infinity, minHeight: 82, alignment: .leading)
-            .padding(.horizontal, 14)
-            .background(Color.black.opacity(0.40), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(color.opacity(0.38), lineWidth: 1))
-        }
-        .buttonStyle(.plain)
-    }
-
     private var footerStatus: some View {
         HStack(spacing: 10) {
-            Circle().fill(.green).frame(width: 9, height: 9).shadow(color: .green, radius: 6)
-            Text("SYSTEM READY").font(.system(size: 10, weight: .black, design: .rounded)).tracking(1.2).foregroundStyle(.white.opacity(0.72))
+            Circle().fill(.green).frame(width: 9, height: 9)
+            Text("SYSTEM READY").font(.system(size: 10, weight: .black, design: .rounded)).foregroundStyle(.white.opacity(0.72))
             Spacer()
-            Text("VOLCANO • READY").font(.system(size: 9, weight: .bold, design: .rounded)).foregroundStyle(AppTheme.accent.opacity(0.8))
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 13)
         .background(Color.black.opacity(0.45), in: Capsule())
-        .overlay(Capsule().stroke(AppTheme.accent.opacity(0.2), lineWidth: 1))
     }
 
     private var developerCredits: some View {
         VStack(spacing: 10) {
-            Text("Developed by VOLCANO").font(.system(size: 11, weight: .bold, design: .rounded)).foregroundStyle(.white.opacity(0.72)).multilineTextAlignment(.center)
-            HStack(spacing: 10) { channelButton(title: "VOLCANO TikTok", url: "https://www.tiktok.com/@volcano16x") }
+            Text("Developed by VOLCANO").font(.system(size: 11, weight: .bold, design: .rounded)).foregroundStyle(.white.opacity(0.72))
         }
-        .frame(maxWidth: .infinity)
-        .padding(.top, 4)
-        .padding(.bottom, 8)
-    }
-
-    private func channelButton(title: String, url: String) -> some View {
-        Button {
-            guard let destination = URL(string: url) else { return }
-            UIApplication.shared.open(destination)
-        } label: {
-            Label(title, systemImage: "paperplane.fill")
-                .font(.system(size: 10, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 9)
-                .background(AppTheme.accent.opacity(0.18), in: Capsule())
-                .overlay(Capsule().stroke(AppTheme.accent.opacity(0.42), lineWidth: 1))
-        }
-        .buttonStyle(.plain)
     }
 
     private func panelTitle(_ title: String, icon: String) -> some View {
-        Label(title, systemImage: icon).font(.system(size: 12, weight: .black, design: .rounded)).tracking(1.4).foregroundStyle(AppTheme.accent)
+        Label(title, systemImage: icon).font(.system(size: 12, weight: .black, design: .rounded)).foregroundStyle(AppTheme.accent)
     }
 
     private func statusRow(icon: String, title: String, value: String, color: Color) -> some View {
@@ -446,160 +288,31 @@ struct MainAppView: View {
 
     private func togglePatch(packageFilename: String, state: Binding<Bool>) {
         guard !patchOperationBusy else { return }
-        guard let item = patchStore.items.first(where: { $0.packageURL.lastPathComponent.caseInsensitiveCompare(packageFilename) == .orderedSame }) else {
-            patchMessage = "ERROR — PACKAGE NOT FOUND"
-            return
-        }
+        guard let item = patchStore.items.first(where: { $0.packageURL.lastPathComponent.caseInsensitiveCompare(packageFilename) == .orderedSame }) else { return }
 
         let wasEnabled = state.wrappedValue
         patchOperationBusy = true
-        patchMessage = "PROCESSING — \(packageFilename)"
         let project = item.project
         let projectID = item.id
 
         DispatchQueue.global(qos: .userInitiated).async {
-            let result: PatchActionResult
             do {
                 if wasEnabled {
-                    guard let receipt = DevicePatchService.latestReceipt(projectID: projectID) else {
-                        result = .unavailable("NO ACTIVE RECEIPT")
-                        DispatchQueue.main.async {
-                            self.setPatchState(for: packageFilename, enabled: false)
-                            self.patchMessage = "OFF"
-                            self.patchOperationBusy = false
-                        }
-                        return
+                    if let receipt = DevicePatchService.latestReceipt(projectID: projectID) {
+                        try DevicePatchService.restore(receipt: receipt)
                     }
-                    try DevicePatchService.restore(receipt: receipt)
-                    result = .restored
                 } else {
-                    guard let project else {
-                        result = .unavailable("PASSWORD REQUIRED")
-                        DispatchQueue.main.async {
-                            self.patchStore.requestUnlock(for: item)
-                            self.patchMessage = "PASSWORD REQUIRED"
-                            self.patchOperationBusy = false
-                        }
-                        return
+                    if let project = project {
+                        _ = try DevicePatchService.apply(project: project)
                     }
-                    _ = try DevicePatchService.apply(project: project)
-                    result = .applied
                 }
-            } catch {
-                result = .unavailable("FAILED")
-            }
+            } catch {}
 
             DispatchQueue.main.async {
-                switch result {
-                case .applied:
-                    self.setPatchState(for: packageFilename, enabled: true)
-                    self.patchMessage = "Inject Successful — \(packageFilename)"
-                case .restored:
-                    self.setPatchState(for: packageFilename, enabled: false)
-                    self.patchMessage = "Restore Successful — \(packageFilename)"
-                case .unavailable(let message):
-                    self.patchMessage = message
-                }
+                self.syncPatchStates()
                 self.patchOperationBusy = false
             }
         }
-    }
-
-    private func openGame(scheme: String) {
-        guard let url = URL(string: "\(scheme)://") else { return }
-        UIApplication.shared.open(url, options: [:]) { _ in }
-    }
-}
-
-struct WebPatchItem {
-    let id: String
-    let title: String
-    let isEnabled: Bool
-    let isLocked: Bool
-    let filename: String
-    var isHidden: Bool = false
-}
-
-private class IntegratedWebServer {
-    static let shared = IntegratedWebServer()
-    private var listener: NWListener?
-    var onTogglePatch: ((String) -> Void)?
-    var itemsProvider: (() -> [WebPatchItem])?
-    var statusProvider: (() -> (busy: Bool, message: String))?
-    var appPasswordProvider: (() -> String)?
-    private(set) var isRunning = false
-    
-    func startServer() -> String? {
-        let port: UInt16 = 8080
-        let ip = getLocalIPAddress() ?? "localhost"
-        let serverURL = "http://\(ip):\(port)"
-        stopServer()
-        do {
-            let parameters = NWParameters.tcp
-            parameters.allowLocalEndpointReuse = true
-            let l = try NWListener(using: parameters, on: NWEndpoint.Port(rawValue: port)!)
-            l.newConnectionHandler = { connection in self.handleConnection(connection) }
-            listener = l
-            isRunning = true
-            l.start(queue: .global())
-            return serverURL
-        } catch {
-            isRunning = false
-            return nil
-        }
-    }
-    
-    private func handleConnection(_ connection: NWConnection) {
-        connection.start(queue: .global())
-        connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { data, _, _, _ in
-            if let data = data, let requestString = String(data: data, encoding: .utf8) {
-                if requestString.contains("GET /toggle?patch=") {
-                    if let range = requestString.range(of: "GET /toggle?patch=") {
-                        let sub = String(requestString[range.upperBound...])
-                        let patchID = sub.components(separatedBy: " ")[0].removingPercentEncoding ?? ""
-                        self.onTogglePatch?(patchID)
-                    }
-                }
-                let firstLine = requestString.components(separatedBy: "\r\n").first ?? ""
-                if firstLine.hasPrefix("GET /toggle") {
-                    let redirect = "HTTP/1.1 303 See Other\r\nLocation: /\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
-                    connection.send(content: redirect.data(using: .utf8), completion: .contentProcessed({ _ in connection.cancel() }))
-                    return
-                }
-                let htmlResponse = "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: 2\r\nConnection: close\r\n\r\nOK"
-                connection.send(content: htmlResponse.data(using: .utf8), completion: .contentProcessed({ _ in connection.cancel() }))
-            }
-        }
-    }
-    
-    func stopServer() {
-        listener?.stateUpdateHandler = nil
-        listener?.cancel()
-        listener = nil
-        isRunning = false
-    }
-    
-    private func getLocalIPAddress() -> String? {
-        var address: String?
-        var ifaddr: UnsafeMutablePointer<ifaddrs>? = nil
-        if getifaddrs(&ifaddr) == 0 {
-            var ptr = ifaddr
-            while ptr != nil {
-                let interface = ptr?.pointee
-                let addrFamily = interface?.ifa_addr.pointee.sa_family
-                if addrFamily == UInt8(AF_INET) {
-                    let name = String(cString: (interface?.ifa_name)!)
-                    if name == "en0" || name == "bridge0" || name == "pdp_ip0" {
-                        var hostname = [CChar](repeating: 0, count: Int(NI_MAXHOST))
-                        getnameinfo(interface?.ifa_addr, socklen_t((interface?.ifa_addr.pointee.sa_len)!), &hostname, socklen_t(hostname.count), nil, socklen_t(0), NI_NUMERICHOST)
-                        address = String(cString: hostname)
-                    }
-                }
-                ptr = ptr?.pointee.ifa_next
-            }
-            freeifaddrs(ifaddr)
-        }
-        return address
     }
 }
 
@@ -620,7 +333,7 @@ private struct PatchOptionCard: View {
                     Text(isEnabled ? "ON" : "OFF").font(.system(size: 11, weight: .black, design: .rounded)).foregroundStyle(isEnabled ? .green : .white.opacity(0.58))
                 }
                 Text(name).font(.system(size: 15, weight: .black, design: .rounded)).foregroundStyle(.white).lineLimit(2)
-                Text(target).font(.system(size: 10, weight: .black, design: .rounded)).tracking(1.3).foregroundStyle(color)
+                Text(target).font(.system(size: 10, weight: .black, design: .rounded)).foregroundStyle(color)
             }
             .frame(maxWidth: .infinity, minHeight: 142, alignment: .leading)
             .padding(14)
@@ -645,13 +358,9 @@ private struct PatchUnlockPrompt: View {
 }
 
 struct AnimatedHyperBackdrop: View {
-    @State private var animate = false
     var body: some View {
-        GeometryReader { proxy in
-            ZStack {
-                AppTheme.pageBackground
-                Circle().fill(AppTheme.accent.opacity(0.12)).frame(width: 280, height: 280).blur(radius: 70)
-            }
+        ZStack {
+            AppTheme.pageBackground
         }
     }
 }
