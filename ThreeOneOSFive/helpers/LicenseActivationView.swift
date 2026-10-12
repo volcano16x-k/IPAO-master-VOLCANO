@@ -94,17 +94,6 @@ struct LicenseActivationView: View {
                                         .padding(.vertical, 10)
                                         .background(Color.gray.opacity(0.20), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                                 }
-
-                                if let contactOwner = manager.contactOwner,
-                                   let contactURL = ownerURL(from: contactOwner) {
-                                    Button("Contact Owner…") {
-                                        UIApplication.shared.open(contactURL)
-                                    }
-                                    .font(.system(size: 13, weight: .bold, design: .rounded))
-                                    .foregroundStyle(AppTheme.secondaryAccent)
-                                    .buttonStyle(.plain)
-                                    .transition(.opacity.combined(with: .move(edge: .bottom)))
-                                }
                             }
                             .padding(20)
                             .background(.ultraThinMaterial.opacity(0.72), in: RoundedRectangle(cornerRadius: 25, style: .continuous))
@@ -133,16 +122,5 @@ struct LicenseActivationView: View {
     private func activate() {
         keyFocused = false
         manager.activate(key: key)
-    }
-
-    private func ownerURL(from value: String) -> URL? {
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.hasPrefix("http://") || trimmed.hasPrefix("https://") {
-            return URL(string: trimmed)
-        }
-        if trimmed.hasPrefix("@") {
-            return URL(string: "https://t.me/" + String(trimmed.dropFirst()))
-        }
-        return URL(string: "https://t.me/" + trimmed)
     }
 }
