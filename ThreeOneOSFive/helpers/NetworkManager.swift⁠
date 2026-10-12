@@ -1,0 +1,31 @@
+import Foundation
+
+struct KeyVerifier {
+    static func checkKey(inputKey: String, discordId: String, completion: @escaping (Bool, String) -> Void) {
+        guard let url = URL(string: "http://localhost:3000/api/verify-key") else { return }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let body: [String: Any] = ["key": inputKey, "discordUserId": discordId]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        
+        URLSession.shared.dataTask(with: request) { data, _, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    completion(false, "خطأ في الاتصال: \(error.localizedDescription)")
+                    return
+                }
+                guard let data = data,
+                      let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                      let message = json["message"] as? String,
+                      let success = json["success"] as? Bool else {
+                    completion(false, "استجابة غير صالحة")
+                    return
+                }
+                completion(success, message)
+            }
+        }.resume()
+    }
+}
