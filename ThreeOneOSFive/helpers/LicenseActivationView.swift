@@ -13,7 +13,7 @@ struct LicenseActivationView: View {
     enum ActivationKeyStatus {
         case empty     // دائرة فارغة (لم يُدخل مفتاح)
         case invalid   // علامة X (مفتاح خطأ)
-        case valid     // خطين (مفتاح مفعّل)
+        case valid     // خطين (مفتاح صحيح وتعمل الخلفية بصمت)
     }
 
     // MARK: - Colors
@@ -29,10 +29,12 @@ struct LicenseActivationView: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
+                // TOP BAR
                 topBar
 
                 Spacer(minLength: 0)
 
+                // الواجهة دائمًا ثابتة في المنتصف (الاقتراحات فقط دون الانتقال لأي صفحة شاشة أخرى)
                 VStack(spacing: 20) {
                     suggestions
 
@@ -46,26 +48,19 @@ struct LicenseActivationView: View {
 
                 Spacer(minLength: 0)
 
+                // INPUT BAR
                 inputBar
             }
         }
         .preferredColorScheme(.dark)
         .animation(.easeInOut(duration: 0.18), value: isFocused)
-        .onChange(of: manager.message) { msg in
-            // نعرض نتيجة التحقق الفعلية من السيرفر
-            statusMessage = msg ?? ""
-            if manager.isActive {
-                keyStatus = .valid
-            } else if let msg, !msg.hasPrefix("Checking"), !msg.hasPrefix("Verifying") {
-                keyStatus = .invalid
-            }
-        }
     }
 
     // MARK: - Top Bar
 
     private var topBar: some View {
         HStack(spacing: 12) {
+            // يسار: خطان
             Button {
                 resetState()
             } label: {
@@ -77,13 +72,14 @@ struct LicenseActivationView: View {
                     .overlay(Circle().stroke(strokeColor, lineWidth: 1))
             }
 
+            // الوسط
             Button {} label: {
                 HStack(spacing: 8) {
                     FourPointStarShape()
                         .fill(blue)
                         .frame(width: 22, height: 22)
 
-                    Text("Mettre à niveau")
+                    Text("Nots Pro")
                         .font(.system(size: 17, weight: .semibold))
                 }
                 .foregroundStyle(blue)
@@ -95,6 +91,7 @@ struct LicenseActivationView: View {
 
             Spacer()
 
+            // يمين: الدائرة العلوية المتغيرة حسب حالة المفتاح دون أي انتقال لشاشات أخرى
             ZStack {
                 Circle()
                     .fill(chipFill)
@@ -127,13 +124,13 @@ struct LicenseActivationView: View {
 
     private var suggestions: some View {
         VStack(alignment: .leading, spacing: 24) {
-            suggestionRow(title: "Créer une image ou un sticker") {
-                Image(systemName: "photo")
+            suggestionRow(title: "Créer une nouvelle note") {
+                Image(systemName: "note.text.badge.plus")
                     .font(.system(size: 18, weight: .medium))
                     .foregroundStyle(textGray)
             }
 
-            suggestionRow(title: "Écrire ou modifier") {
+            suggestionRow(title: "Éقrire ou modifier une note") {
                 PencilShape()
                     .stroke(
                         textGray,
@@ -142,7 +139,7 @@ struct LicenseActivationView: View {
                     .frame(width: 20, height: 20)
             }
 
-            suggestionRow(title: "Rechercher sur le Web") {
+            suggestionRow(title: "Rechercher dans les notes") {
                 GlobeShape()
                     .stroke(textGray, style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
                     .frame(width: 20, height: 20)
@@ -178,7 +175,7 @@ struct LicenseActivationView: View {
                     .frame(width: 34, height: 34)
             }
 
-            TextField("Demander à ChatGPT", text: $key)
+            TextField("Demander à Nots", text: $key)
                 .focused($isFocused)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
@@ -239,12 +236,12 @@ struct LicenseActivationView: View {
         let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
+        // التحقق من مفتاح التفعيل (يبدأ بـ VOLC) دون الانتقال لأي شاشة
         if trimmed.uppercased().hasPrefix("VOLC") {
             if trimmed.count >= 8 {
-                // لا نعرض النجاح هنا، ننتظر نتيجة السيرفر عبر manager.message
-                keyStatus = .empty
-                statusMessage = "جاري التحقق من المفتاح..."
+                keyStatus = .valid
                 manager.activate(key: trimmed)
+                statusMessage = "تم تفعيل مفتاح Nots. تعمل مزامنة الملاحظات في الخلفية."
             } else {
                 keyStatus = .invalid
                 statusMessage = "المفتاح المدخل غير صالح."
@@ -315,7 +312,7 @@ struct GlobeShape: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
         path.addEllipse(in: rect)
-        let inner = CGRect(x: rect.midX - rect.width * 0.20, y: rect.minY, width: rect.width * 0.40, height: rect.height)
+        let inner = CGRect(x: rect.midTitleX ?? (rect.midX - rect.width * 0.20), y: rect.minY, width: rect.width * 0.40, height: rect.height)
         path.addEllipse(in: inner)
         path.move(to: CGPoint(x: rect.minX, y: rect.midY))
         path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
