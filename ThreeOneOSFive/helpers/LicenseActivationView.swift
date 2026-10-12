@@ -14,8 +14,10 @@ struct LicenseActivationView: View {
     @State private var isWaitingForAI = false
     @FocusState private var isFocused: Bool
 
-    // ضع مفتاحك هنا بين علامتي التنصيص
-    private let apiKey = "AQ.Ab8RN6J0FUDlr0GkD6ZJ4q5oopTrSTpVIvbpUxEOBUrLOVQGYA"
+    // الصق مفتاحك الجديد هنا بين علامتي التنصيص بدون مسافات
+    private let apiKey = "AQ.Ab8RN6JpFGJ8aoQ_Ld3nRjBzxSGm388sbt2ZCyAU77EkpsSv6Q"
+
+    private let endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent"
 
     private let blue = Color(red: 0.10, green: 0.56, blue: 1.0)
     private let chipFill = Color(white: 0.11)
@@ -85,10 +87,7 @@ struct LicenseActivationView: View {
 
     private var topBar: some View {
         HStack(spacing: 12) {
-            Button(action: {
-                isAIActive = false
-                chatHistory.removeAll()
-            }) {
+            Button(action: resetChat) {
                 MenuTwoLinesShape()
                     .stroke(.white, style: StrokeStyle(lineWidth: 2.4, lineCap: .round))
                     .frame(width: 20, height: 10)
@@ -114,10 +113,7 @@ struct LicenseActivationView: View {
 
             Spacer()
 
-            Button(action: {
-                isAIActive = false
-                chatHistory.removeAll()
-            }) {
+            Button(action: resetChat) {
                 ChatRingShape()
                     .stroke(.white, style: StrokeStyle(lineWidth: 2.4, lineCap: .round, lineJoin: .round))
                     .frame(width: 22, height: 22)
@@ -216,6 +212,11 @@ struct LicenseActivationView: View {
 
     // MARK: - Logic
 
+    private func resetChat() {
+        isAIActive = false
+        chatHistory.removeAll()
+    }
+
     private func handleUserInput() {
         let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, !isWaitingForAI else { return }
@@ -230,6 +231,45 @@ struct LicenseActivationView: View {
         }
     }
 
+    private enum AuthMode: CaseIterable {
+        case googHeader
+        case bearer
+        case queryKey
+    }
+
+    private func send(contents: [[String: Any]], mode: AuthMode) async throws -> (Int, [String: Any]?) {
+        let cleanKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        var urlString = endpoint
+
+        if mode == .queryKey {
+            let encoded = cleanKey.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? cleanKey
+            urlString += "?key=\(encoded)"
+        }
+
+        guard let url = URL(string: urlString) else { throw URLError(.badURL) }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 60
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        switch mode {
+        case .googHeader:
+            request.setValue(cleanKey, forHTTPHeaderField: "x-goog-api-key")
+        case .bearer:
+            request.setValue("Bearer \(cleanKey)", forHTTPHeaderField: "Authorization")
+        case .queryKey:
+            break
+        }
+
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["contents": contents])
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+        let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        return (code, json)
+    }
+
     private func fetchAIResponse() {
         isWaitingForAI = true
 
@@ -241,34 +281,27 @@ struct LicenseActivationView: View {
         Task {
             var reply = "تعذر الحصول على رد."
 
-            guard let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent") else {
-                await MainActor.run { finishWithReply(reply) }
-                return
-            }
-
-            var request = URLRequest(url: url)
-            request.httpMethod = "POST"
-            request.timeoutInterval = 60
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
-            request.httpBody = try? JSONSerialization.data(withJSONObject: ["contents": contents])
-
             do {
-                let (data, response) = try await URLSession.shared.data(for: request)
-                let code = (response as? HTTPURLResponse)?.statusCode ?? 0
-                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+                for mode in AuthMode.allCases {
+                    let (code, json) = try await send(contents: contents, mode: mode)
 
-                if code == 200,
-                   let candidates = json?["candidates"] as? [[String: Any]],
-                   let content = candidates.first?["content"] as? [String: Any],
-                   let parts = content["parts"] as? [[String: Any]],
-                   let text = parts.first?["text"] as? String {
-                    reply = text
-                } else if let err = json?["error"] as? [String: Any],
-                          let message = err["message"] as? String {
-                    reply = "خطأ \(code): \(message)"
-                } else {
-                    reply = "خطأ \(code): رد غير متوقع."
+                    if code == 200,
+                       let candidates = json?["candidates"] as? [[String: Any]],
+                       let content = candidates.first?["content"] as? [String: Any],
+                       let parts = content["parts"] as? [[String: Any]],
+                       let text = parts.first?["text"] as? String {
+                        reply = text
+                        break
+                    }
+
+                    if let err = json?["error"] as? [String: Any],
+                       let message = err["message"] as? String {
+                        reply = "خطأ \(code): \(message)"
+                    } else {
+                        reply = "خطأ \(code): رد غير متوقع."
+                    }
+
+                    if code != 401 && code != 403 { break }
                 }
             } catch {
                 reply = "خطأ شبكة: \(error.localizedDescription)"
