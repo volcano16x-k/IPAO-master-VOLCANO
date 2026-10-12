@@ -16,13 +16,11 @@ final class LicenseManager: ObservableObject {
     private var lastAttemptAt: Date?
 
     init() {
-        // عند الفتح، نحاول التحقق من المفتاح المخزن تلقائياً
         checkSavedKeyOnStartup()
     }
 
     var hasRememberedKey: Bool { string(for: keyAccount) != nil }
 
-    // التحقق التلقائي عند بدء التطبيق من المفتاح المخزن في الـ Keychain
     func checkSavedKeyOnStartup() {
         guard let savedKey = rememberedKey(), !savedKey.isEmpty else {
             isActive = false
@@ -30,7 +28,6 @@ final class LicenseManager: ObservableObject {
             return
         }
 
-        // إرسال المفتاح المخزن للسيرفر للتأكد أنه لا زال صالحاً ولم تنتهِ مدته
         isBusy = true
         message = "Verifying saved session..."
 
@@ -58,8 +55,7 @@ final class LicenseManager: ObservableObject {
                 guard let self else { return }
                 self.isBusy = false
 
-                if let error = error {
-                    // في حال عدم وجود انترنت، نعتبر الجلسة صالحة مؤقتاً بناءً على الحفظ المحلي لتفادي قطع التطبيق
+                if let _ = error {
                     self.isActive = true
                     self.message = "Offline mode active"
                     return
@@ -73,13 +69,11 @@ final class LicenseManager: ObservableObject {
                 do {
                     if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
                        let success = json["success"] as? Bool, success {
-                        // المفتاح صالح ولا زال ضمن المدة
                         self.isActive = true
                         self.message = "Session active"
                     } else {
-                        // انتهت صلاحية المفتاح أو تم استهلاكه
                         self.isActive = false
-                        self.delete(self.keyAccount) // حذف المفتاح المنتهي من الجهاز
+                        self.delete(self.keyAccount)
                         self.message = "Session expired — enter a new key"
                     }
                 } catch {
@@ -87,12 +81,6 @@ final class LicenseManager: ObservableObject {
                 }
             }
         }.resume()
-    }
-
-    func beginLaunchSession() {
-        if !isActive {
-            checkSavedKeyOnStartup()
-        }
     }
 
     func activate(key: String) {
@@ -168,16 +156,6 @@ final class LicenseManager: ObservableObject {
     }
 
     func rememberedKey() -> String? { string(for: keyAccount) }
-
-    func refresh() {
-        checkSavedKeyOnStartup()
-    }
-
-    func deactivate() {
-        delete(keyAccount)
-        isActive = false
-        message = "Activation removed from this device"
-    }
 
     private func string(for account: String) -> String? {
         let query: [String: Any] = [
