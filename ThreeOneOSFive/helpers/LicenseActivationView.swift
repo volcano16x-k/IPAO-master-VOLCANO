@@ -1,6 +1,5 @@
 import SwiftUI
 
-// نموذج نموذج بيانات الملاحظات للحفظ المحلي
 struct NoteItem: Identifiable, Codable {
     var id = UUID()
     var content: String
@@ -15,12 +14,10 @@ struct LicenseActivationView: View {
     @State private var statusMessage = ""
     @FocusState private var isFocused: Bool
     
-    // شاشة كتابة الملاحظات الجديدة
     @State private var isWritingNote = false
     @State private var noteContent = ""
     @FocusState private var isNoteFocused: Bool
 
-    // حفظ الملاحظات محلياً باستخدام AppStorage
     @AppStorage("saved_notes") private var savedNotesData: Data = Data()
     @State private var notesList: [NoteItem] = []
 
@@ -39,10 +36,8 @@ struct LicenseActivationView: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // TOP BAR
                 topBar
 
-                // العنوان الرئيسي (Notes)
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
                         Text("Notes")
@@ -62,7 +57,6 @@ struct LicenseActivationView: View {
 
                 Spacer(minLength: 0)
 
-                // المنتصف (عرض الملاحظات أو أيقونة Aucune note إذا كانت فارغة)
                 if notesList.isEmpty {
                     VStack(spacing: 16) {
                         Image(systemName: "note.text")
@@ -101,7 +95,6 @@ struct LicenseActivationView: View {
 
                 Spacer(minLength: 0)
 
-                // BOTTOM BAR (شريط البحث وزر الكتابة)
                 bottomBar
             }
         }
@@ -114,8 +107,6 @@ struct LicenseActivationView: View {
             loadNotes()
         }
     }
-
-    // MARK: - Top Bar
 
     private var topBar: some View {
         HStack(spacing: 12) {
@@ -144,8 +135,6 @@ struct LicenseActivationView: View {
         .padding(.horizontal, 20)
         .padding(.top, 4)
     }
-
-    // MARK: - Bottom Bar
 
     private var bottomBar: some View {
         HStack(spacing: 12) {
@@ -190,28 +179,25 @@ struct LicenseActivationView: View {
         .padding(.bottom, 13)
     }
 
-    // MARK: - Note Editor View (شاشة الكتابة وتنسيق الأزرار تماماً مثل الصورة)
-
     private var noteEditorView: some View {
         NavigationView {
             ZStack {
                 Color.black.ignoresSafeArea()
 
                 VStack(alignment: .leading, spacing: 0) {
-                    // أزرار التنسيق العلوية فوق لوحة المفاتيح (B, I, U, S المطابقة للصورة)
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 22) {
                             Button(action: { appendFormatting(tag: "**") }) {
                                 Text("B").font(.system(size: 17, weight: .bold))
                             }
                             Button(action: { appendFormatting(tag: "*") }) {
-                                Text("I").font(.system(size: 17, weight: .italic))
+                                Text("I").font(.system(size: 17)).italic()
                             }
                             Button(action: { appendFormatting(tag: "~~") }) {
-                                Text("U̲").font(.system(size: 17, weight: .semibold))
+                                Text("U").underline()
                             }
                             Button(action: { appendFormatting(tag: "---") }) {
-                                Text("S̶").font(.system(size: 17, weight: .medium))
+                                Text("S").strikethrough()
                             }
                             Button(action: {}) {
                                 Image(systemName: "pencil.tip.crop.circle")
@@ -267,7 +253,6 @@ struct LicenseActivationView: View {
                             Image(systemName: "ellipsis.circle")
                                 .foregroundStyle(.white)
                         }
-                        // زر الحفظ (علامة الصح الصفراء مثل الصورة)
                         Button {
                             saveCurrentNote()
                         } label: {
@@ -282,8 +267,6 @@ struct LicenseActivationView: View {
             }
         }
     }
-
-    // MARK: - Actions & Persistence
 
     private func appendFormatting(tag: String) {
         noteContent += tag
