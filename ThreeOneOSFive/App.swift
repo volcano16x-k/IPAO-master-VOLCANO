@@ -7,13 +7,21 @@ struct ThreeOneOSFiveApp: App {
     @StateObject private var licenseManager = LicenseManager()
     @StateObject private var patchDraftCoordinator = PatchDraftCoordinator()
     @StateObject private var fileOperationCoordinator = FileOperationCoordinator()
-    @AppStorage(AppLanguage.storageKey) private var languageCode = AppLanguage.english.rawValue
+
+    @AppStorage(AppLanguage.storageKey)
+    private var languageCode = AppLanguage.english.rawValue
+
     @State private var updateOffer: AppUpdateChecker.Offer?
-    @Environment(\.scenePhase) private var scenePhase
+
+    @Environment(\.scenePhase)
+    private var scenePhase
 
     init() {
         setupLogCapture()
-        log("app: VOLCANO launching — iOS \(AppInfo.osVersion) (\(AppInfo.osBuild)) \(AppInfo.machineName)")
+
+        log(
+            "app: VOLCANO launching — iOS \(AppInfo.osVersion) (\(AppInfo.osBuild)) \(AppInfo.machineName)"
+        )
     }
 
     private var language: AppLanguage {
@@ -22,8 +30,13 @@ struct ThreeOneOSFiveApp: App {
 
     private func checkForUpdate() {
         Task {
-            guard let offer = await AppUpdateChecker.check() else { return }
-            await MainActor.run { updateOffer = offer }
+            guard let offer = await AppUpdateChecker.check() else {
+                return
+            }
+
+            await MainActor.run {
+                updateOffer = offer
+            }
         }
     }
 
@@ -42,37 +55,64 @@ struct ThreeOneOSFiveApp: App {
             .environmentObject(fileOperationCoordinator)
             .environment(\.appLanguage, language)
             .environment(\.locale, language.locale)
+
             .alert(item: $updateOffer) { offer in
                 Alert(
-                    title: Text(language.text("update.title")),
-                    message: Text(language.text("update.message", offer.version)),
-                    primaryButton: .default(Text(language.text("update.agree"))) {
+                    title: Text(
+                        language.text("update.title")
+                    ),
+                    message: Text(
+                        language.text(
+                            "update.message",
+                            offer.version
+                        )
+                    ),
+                    primaryButton: .default(
+                        Text(
+                            language.text("update.agree")
+                        )
+                    ) {
                         UIApplication.shared.open(offer.url)
                     },
-                    secondaryButton: .cancel(Text(language.text("update.dismiss"))) {
-                        AppUpdateChecker.dismiss(version: offer.version)
+                    secondaryButton: .cancel(
+                        Text(
+                            language.text("update.dismiss")
+                        )
+                    ) {
+                        AppUpdateChecker.dismiss(
+                            version: offer.version
+                        )
                     }
                 )
             }
+
             .onAppear {
                 licenseManager.beginLaunchSession()
                 appState.detectSupport()
                 checkForUpdate()
             }
-            .onChange(of: scenePhase) { phase in
-                guard phase == .active else { return }
+
+            // SwiftUI version used by the GitHub build expects a
+            // zero-argument onChange closure.
+            .onChange(of: scenePhase) {
                 licenseManager.beginLaunchSession()
                 appState.detectSupport()
             }
+
             .onOpenURL { url in
                 patchDraftCoordinator.presentImport(url)
             }
+
             .preferredColorScheme(.dark)
         }
     }
 }
 
+
+// MARK: - App State
+
 class AppState: ObservableObject {
+
     @Published var exploitStatus: ExploitStatus = .notStarted
     @Published var unsupportedMessage: String?
     @Published var kernelExploitRunning = false
@@ -88,25 +128,43 @@ class AppState: ObservableObject {
         )
     }
 
-    var isSupported: Bool { unsupportedMessage == nil }
+    var isSupported: Bool {
+        unsupportedMessage == nil
+    }
 
     func detectSupport() {
+
         let v = AppInfo.versionTuple
+
         let supported = ExploitSupportPolicy.isSupported(
             major: v.major,
             minor: v.minor,
             patch: v.patch,
             build: AppInfo.osBuild
         )
-#if targetEnvironment(simulator)
-        if ProcessInfo.processInfo.arguments.contains("--simulate-access") {
-            exploitStatus = .success(method: "Simulator preview")
-        }
-#endif
 
-        unsupportedMessage = supported ? nil : "iOS \(AppInfo.osVersion) (\(AppInfo.osBuild))"
+        #if targetEnvironment(simulator)
+
+        if ProcessInfo.processInfo.arguments.contains(
+            "--simulate-access"
+        ) {
+            exploitStatus = .success(
+                method: "Simulator preview"
+            )
+        }
+
+        #endif
+
+        unsupportedMessage =
+            supported
+            ? nil
+            : "iOS \(AppInfo.osVersion) (\(AppInfo.osBuild))"
+
         if let unsupportedMessage {
-            exploitStatus = .unsupported(unsupportedMessage)
+            exploitStatus = .unsupported(
+                unsupportedMessage
+            )
+
             return
         }
 
@@ -116,60 +174,128 @@ class AppState: ObservableObject {
             patch: v.patch,
             build: AppInfo.osBuild
         )
-        guard applicable else { return }
+
+        guard applicable else {
+            return
+        }
 
         refreshKernelExploitStatus()
         maybeAutoRunKernelExploit()
     }
 
     private func maybeAutoRunKernelExploit() {
+
         guard !kernelExploitRunning,
               !exploitStatus.isSuccess,
               !exploitStatus.isFailed,
-              !autoRunAttempted else { return }
+              !autoRunAttempted
+        else {
+            return
+        }
+
         autoRunAttempted = true
-        log("app: starting kernel exploit automatically")
+
+        log(
+            "app: starting kernel exploit automatically"
+        )
+
         runKernelExploitIfNeeded()
     }
 
     private func refreshKernelExploitStatus() {
-        guard !kernelExploitRunning else { return }
+
+        guard !kernelExploitRunning else {
+            return
+        }
+
+        // iOS < 26:
+        // kernel R/W success persists.
+        //
+        // iOS >= 26:
+        // verify sandbox access again.
 
         if KernelExploit.requiresSandboxEscape {
+
             if KernelExploit.hasSandboxAccess() {
+
                 if !exploitStatus.isSuccess {
-                    exploitStatus = .success(method: "kexploit")
-                    log("app: existing sandbox access is still active; skipping kernel exploit")
+                    exploitStatus = .success(
+                        method: "kexploit"
+                    )
+
+                    log(
+                        "app: existing sandbox access is still active; skipping kernel exploit"
+                    )
                 }
+
             } else if exploitStatus.isSuccess {
+
                 exploitStatus = .notStarted
-                log("app: sandbox access is no longer active")
+
+                log(
+                    "app: sandbox access is no longer active"
+                )
             }
         }
     }
 
     func runKernelExploitIfNeeded() {
+
         refreshKernelExploitStatus()
+
         guard !kernelExploitRunning,
               !exploitStatus.isSuccess,
-              !exploitStatus.isFailed else { return }
+              !exploitStatus.isFailed
+        else {
+            return
+        }
+
         kernelExploitRunning = true
         exploitStatus = .notStarted
-        log("app: running kernel exploit on background...")
-        DispatchQueue.global(qos: .userInitiated).async {
+
+        log(
+            "app: running kernel exploit on background..."
+        )
+
+        DispatchQueue.global(
+            qos: .userInitiated
+        ).async {
+
             let ok = KernelExploit.run()
+
             DispatchQueue.main.async {
+
                 self.kernelExploitRunning = false
+
                 if ok {
-                    self.exploitStatus = .success(method: "kexploit")
+
+                    self.exploitStatus = .success(
+                        method: "kexploit"
+                    )
+
                     if KernelExploit.requiresSandboxEscape {
-                        log("app: kernel exploit success — sandbox access verified")
+
+                        log(
+                            "app: kernel exploit success — sandbox access verified"
+                        )
+
                     } else {
-                        log("app: kernel exploit success — kernel access active")
+
+                        log(
+                            "app: kernel exploit success — kernel access active"
+                        )
                     }
+
                 } else {
-                    self.exploitStatus = .failed(method: "kexploit", code: -1)
-                    log("app: kernel exploit failed — relaunch the app before retrying")
+
+                    self.exploitStatus = .failed(
+                        method: "kexploit",
+                        code: -1
+                    )
+
+                    log(
+                        "app: kernel exploit failed — relaunch the app before retrying"
+                    )
                 }
             }
         }
