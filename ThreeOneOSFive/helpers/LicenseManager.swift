@@ -2,10 +2,23 @@ import Combine
 import Foundation
 import Security
 
+extension Notification.Name {
+    static let licenseStateChanged = Notification.Name("licenseStateChanged")
+}
+
 @MainActor
 final class LicenseManager: ObservableObject {
     @Published private(set) var expirationDate: Date?
-    @Published private(set) var isActive = false
+    @Published private(set) var isActive = false {
+        didSet {
+            UserDefaults.standard.set(isActive, forKey: "licenseActive")
+            NotificationCenter.default.post(
+                name: .licenseStateChanged,
+                object: nil,
+                userInfo: ["active": isActive]
+            )
+        }
+    }
     @Published private(set) var isBusy = false
     @Published private(set) var message: String?
     @Published private(set) var contactOwner: String?
@@ -98,12 +111,12 @@ final class LicenseManager: ObservableObject {
     func activate(key: String) {
         let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, !isBusy else { return }
-        
+
         if let lastAttemptAt, Date().timeIntervalSince(lastAttemptAt) < 1 {
             message = "Please wait a moment before trying again"
             return
         }
-        
+
         lastAttemptAt = Date()
         isBusy = true
         message = "Checking access key..."
@@ -145,7 +158,7 @@ final class LicenseManager: ObservableObject {
                 do {
                     if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
                        let success = json["success"] as? Bool {
-                        
+
                         if success {
                             if self.rememberKey {
                                 self.save(trimmed, for: self.keyAccount)
