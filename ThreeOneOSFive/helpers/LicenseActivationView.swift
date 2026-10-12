@@ -2,269 +2,147 @@ import SwiftUI
 
 struct LicenseActivationView: View {
     @ObservedObject var manager: LicenseManager
-
     @State private var key = ""
     @FocusState private var isFocused: Bool
 
-    // MARK: - Colors
-
-    private let background = Color.black
-    private let surface = Color(red: 0.105, green: 0.105, blue: 0.105)
-    private let secondarySurface = Color(red: 0.145, green: 0.145, blue: 0.145)
-
-    private let primaryText = Color.white
-    private let secondaryText = Color(white: 0.70)
-    private let accent = Color(red: 0.25, green: 0.72, blue: 0.38)
+    private let blue = Color(red: 0.10, green: 0.56, blue: 1.0)
+    private let chipFill = Color(white: 0.11)
+    private let strokeColor = Color.white.opacity(0.08)
+    private let textGray = Color(white: 0.78)
 
     var body: some View {
         ZStack {
-            background
-                .ignoresSafeArea()
+            Color.black.ignoresSafeArea()
 
             VStack(spacing: 0) {
+                topBar
 
-                header
+                Spacer()
 
-                Spacer(minLength: 20)
-
-                if !isFocused && key.isEmpty {
-                    welcomeContent
-                        .transition(.opacity)
-                }
-
-                Spacer(minLength: 12)
-
-                if let message = manager.message,
-                   !message.isEmpty {
-                    Text(message)
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.red)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 25)
-                        .padding(.bottom, 8)
-                }
+                suggestions
 
                 inputBar
             }
         }
         .preferredColorScheme(.dark)
-        .animation(
-            .easeInOut(duration: 0.2),
-            value: isFocused
-        )
+        .animation(.easeInOut(duration: 0.25), value: isFocused)
     }
 
-    // MARK: - Header
+    // MARK: - Top Bar
 
-    private var header: some View {
-        HStack {
-
-            Button {
-                // Menu action
-            } label: {
+    private var topBar: some View {
+        HStack(spacing: 12) {
+            Button(action: {}) {
                 Image(systemName: "line.3.horizontal")
                     .font(.system(size: 20, weight: .medium))
-                    .foregroundStyle(primaryText)
+                    .foregroundStyle(.white)
                     .frame(width: 42, height: 42)
+                    .background(chipFill, in: Circle())
+                    .overlay(Circle().stroke(strokeColor, lineWidth: 1))
             }
-            .buttonStyle(.plain)
+
+            Button(action: {}) {
+                HStack(spacing: 6) {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 17, weight: .semibold))
+                    Text("Mettre à niveau")
+                        .font(.system(size: 17, weight: .semibold))
+                }
+                .foregroundStyle(blue)
+                .padding(.horizontal, 16)
+                .frame(height: 42)
+                .background(chipFill, in: Capsule())
+                .overlay(Capsule().stroke(strokeColor, lineWidth: 1))
+            }
 
             Spacer()
 
-            Text("ChatGPT")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(primaryText)
-
-            Spacer()
-
-            Button {
-                // New chat / options action
-            } label: {
-                Image(systemName: "square.and.pencil")
+            Button(action: {}) {
+                Image(systemName: "bubble.left.and.bubble.right")
                     .font(.system(size: 20, weight: .medium))
-                    .foregroundStyle(primaryText)
+                    .foregroundStyle(.white)
                     .frame(width: 42, height: 42)
+                    .background(chipFill, in: Circle())
+                    .overlay(Circle().stroke(strokeColor, lineWidth: 1))
             }
-            .buttonStyle(.plain)
         }
-        .padding(.horizontal, 14)
-        .padding(.top, 6)
-        .frame(height: 54)
+        .padding(.horizontal, 20)
+        .padding(.top, 4)
     }
 
-    // MARK: - Welcome
+    // MARK: - Suggestions
 
-    private var welcomeContent: some View {
-        VStack(spacing: 0) {
-
-            Image(systemName: "sparkles")
-                .font(.system(size: 27, weight: .medium))
-                .foregroundStyle(primaryText)
-                .frame(width: 52, height: 52)
-                .background(
-                    Circle()
-                        .fill(secondarySurface)
-                )
-                .padding(.bottom, 22)
-
-            Text("How can I help you?")
-                .font(.system(size: 28, weight: .semibold))
-                .foregroundStyle(primaryText)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 20)
-
-            VStack(spacing: 20) {
-                suggestion(
-                    icon: "photo",
-                    title: "Create an image"
-                )
-
-                suggestion(
-                    icon: "pencil",
-                    title: "Write or edit"
-                )
-
-                suggestion(
-                    icon: "globe",
-                    title: "Search the web"
-                )
-            }
-            .padding(.top, 34)
+    private var suggestions: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            suggestionRow(icon: "photo", title: "Créer une image ou un sticker")
+            suggestionRow(icon: "pencil.line", title: "Écrire ou modifier")
+            suggestionRow(icon: "globe", title: "Rechercher sur le Web")
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.leading, 26)
+        .padding(.trailing, 20)
+        .padding(.bottom, 24)
     }
 
-    private func suggestion(
-        icon: String,
-        title: String
-    ) -> some View {
-
+    private func suggestionRow(icon: String, title: String) -> some View {
         HStack(spacing: 14) {
-
             Image(systemName: icon)
                 .font(.system(size: 18, weight: .medium))
-                .foregroundStyle(secondaryText)
+                .foregroundStyle(textGray)
                 .frame(width: 25)
-
             Text(title)
                 .font(.system(size: 16, weight: .regular))
-                .foregroundStyle(secondaryText)
-
-            Spacer()
+                .foregroundStyle(textGray)
         }
-        .frame(maxWidth: 320)
     }
 
     // MARK: - Input Bar
 
     private var inputBar: some View {
-        HStack(spacing: 10) {
-
-            // Plus button
-            Button {
-                // Attachment / plus action
-            } label: {
+        HStack(spacing: 12) {
+            Button(action: {
+                manager.activate(key: key)
+            }) {
                 Image(systemName: "plus")
                     .font(.system(size: 20, weight: .medium))
-                    .foregroundStyle(primaryText)
+                    .foregroundStyle(.white)
                     .frame(width: 34, height: 34)
             }
-            .buttonStyle(.plain)
 
-            // Text field
-            TextField(
-                "Message ChatGPT",
-                text: $key
-            )
-            .focused($isFocused)
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled(true)
-            .font(.system(size: 17))
-            .foregroundStyle(primaryText)
-            .tint(primaryText)
-            .submitLabel(.send)
-            .onSubmit {
-                activate()
-            }
+            TextField("Demander à ChatGPT", text: $key)
+                .focused($isFocused)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .font(.system(size: 17))
+                .foregroundStyle(.white)
+                .submitLabel(.done)
+                .onSubmit {
+                    manager.activate(key: key)
+                }
 
-            // Microphone
-            Button {
-                // Microphone action
-            } label: {
+            Button(action: {}) {
                 Image(systemName: "mic")
                     .font(.system(size: 19, weight: .medium))
-                    .foregroundStyle(primaryText)
+                    .foregroundStyle(.white)
                     .frame(width: 32, height: 32)
             }
-            .buttonStyle(.plain)
 
-            // Send
-            Button {
-                activate()
-            } label: {
-
-                Image(
-                    systemName: key.trimmingCharacters(
-                        in: .whitespacesAndNewlines
-                    ).isEmpty
-                    ? "waveform"
-                    : "arrow.up"
-                )
-                .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(
-                    key.trimmingCharacters(
-                        in: .whitespacesAndNewlines
-                    ).isEmpty
-                    ? primaryText
-                    : Color.black
-                )
-                .frame(width: 34, height: 34)
-                .background(
-                    key.trimmingCharacters(
-                        in: .whitespacesAndNewlines
-                    ).isEmpty
-                    ? secondarySurface
-                    : Color.white,
-                    in: Circle()
-                )
+            Button(action: {
+                manager.activate(key: key)
+            }) {
+                Image(systemName: "waveform")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 34, height: 34)
+                    .background(blue, in: Circle())
             }
-            .buttonStyle(.plain)
         }
-        .padding(.leading, 10)
-        .padding(.trailing, 7)
-        .frame(minHeight: 50)
-        .background(
-            surface,
-            in: RoundedRectangle(
-                cornerRadius: 26,
-                style: .continuous
-            )
-        )
-        .overlay(
-            RoundedRectangle(
-                cornerRadius: 26,
-                style: .continuous
-            )
-            .stroke(
-                Color.white.opacity(0.08),
-                lineWidth: 1
-            )
-        )
-        .padding(.horizontal, 10)
-        .padding(.bottom, 10)
-    }
-
-    // MARK: - Activation
-
-    private func activate() {
-        let cleanKey = key.trimmingCharacters(
-            in: .whitespacesAndNewlines
-        )
-
-        guard !cleanKey.isEmpty else {
-            return
-        }
-
-        manager.activate(key: cleanKey)
+        .padding(.leading, 14)
+        .padding(.trailing, 9)
+        .frame(height: 47)
+        .background(chipFill, in: Capsule())
+        .overlay(Capsule().stroke(strokeColor, lineWidth: 1))
+        .padding(.horizontal, 12)
+        .padding(.bottom, 13)
     }
 }
