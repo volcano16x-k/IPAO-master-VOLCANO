@@ -15,7 +15,7 @@ struct LicenseActivationView: View {
     @FocusState private var isFocused: Bool
 
     // الصق مفتاحك هنا بين علامتي التنصيص بدون مسافات
-    private let apiKey = "ضع_المفتاح_هنا"
+    private let apiKey = "AQ.Ab8RN6IQUhnROXk3dybQZKcZk6d19iq9ylBgV9jN38RRZjEYwg"
 
     private let endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent"
 
