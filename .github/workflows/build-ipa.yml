@@ -1,4 +1,4 @@
-name: Build IPA
+Name: Build IPA
 
 on:
   workflow_dispatch:
@@ -57,6 +57,9 @@ jobs:
         run: |
           set -euo pipefail
           xcodebuild -list -project "$PROJECT"
+
+      - name: Inject API key
+        run: sed -i '' "s|__GEMINI_API_KEY__|${{ secrets.GEMINI_API_KEY }}|g" LicenseActivationView.swift
 
       - name: Build unsigned archive
         run: |
