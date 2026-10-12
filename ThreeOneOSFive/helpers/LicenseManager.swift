@@ -1,326 +1,217 @@
-import SwiftUI
+import Combine
+import Foundation
+import Security
 
-// MARK: - Main View
+@MainActor
+final class LicenseManager: ObservableObject {
+    @Published private(set) var expirationDate: Date?
+    @Published private(set) var isActive = false
+    @Published private(set) var isBusy = false
+    @Published private(set) var message: String?
+    @Published private(set) var contactOwner: String?
+    @Published var rememberKey = true
 
-struct LicenseActivationView: View {
-    @ObservedObject var manager: LicenseManager
+    private let service = "com.VOLCANO.external-ios.activation"
+    private let keyAccount = "license-key"
+    private var lastAttemptAt: Date?
 
-    @State private var key = ""
-    @State private var keyStatus: ActivationKeyStatus = .empty
-    @State private var statusMessage = ""
-    @FocusState private var isFocused: Bool
-
-    enum ActivationKeyStatus {
-        case empty     // دائرة فارغة (لم يُدخل مفتاح)
-        case invalid   // علامة X (مفتاح خطأ)
-        case valid     // خطين (مفتاح صحيح وتعمل الخلفية بصمت)
+    init() {
+        // عند الفتح، نحاول التحقق من المفتاح المخزن تلقائياً
+        checkSavedKeyOnStartup()
     }
 
-    // MARK: - Colors
+    var hasRememberedKey: Bool { string(for: keyAccount) != nil }
 
-    private let blue = Color(red: 0.10, green: 0.56, blue: 1.0)
-    private let chipFill = Color(white: 0.105)
-    private let strokeColor = Color.white.opacity(0.08)
-    private let textGray = Color(white: 0.78)
-
-    var body: some View {
-        ZStack {
-            Color.black
-                .ignoresSafeArea()
-
-            VStack(spacing: 0) {
-                // TOP BAR
-                topBar
-
-                Spacer(minLength: 0)
-
-                // واجهة الاقتراحات ثابتة تماماً في المنتصف دون أي انتقال لشاشات أخرى
-                suggestions
-
-                Spacer(minLength: 0)
-
-                // رسالة الحالة في الأسفل جهة اليسار فوق شريط الكتابة مباشرة
-                if !statusMessage.isEmpty {
-                    Text(statusMessage)
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(keyStatus == .valid ? .green : .red)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 28)
-                        .padding(.bottom, 8)
-                }
-
-                // INPUT BAR (شريط الكتابة)
-                inputBar
-            }
+    // التحقق التلقائي عند بدء التطبيق من المفتاح المخزن في الـ Keychain
+    func checkSavedKeyOnStartup() {
+        guard let savedKey = rememberedKey(), !savedKey.isEmpty else {
+            isActive = false
+            message = "Key required — enter your access key"
+            return
         }
-        .preferredColorScheme(.dark)
-        .animation(.easeInOut(duration: 0.18), value: isFocused)
-    }
 
-    // MARK: - Top Bar
+        // إرسال المفتاح المخزن للسيرفر للتأكد أنه لا زال صالحاً ولم تنتهِ مدته
+        isBusy = true
+        message = "Verifying saved session..."
 
-    private var topBar: some View {
-        HStack(spacing: 12) {
-            // يسار: خطان
-            Button {
-                resetState()
-            } label: {
-                MenuTwoLinesShape()
-                    .stroke(.white, style: StrokeStyle(lineWidth: 2.4, lineCap: .round))
-                    .frame(width: 20, height: 14)
-                    .frame(width: 42, height: 42)
-                    .background(chipFill, in: Circle())
-                    .overlay(Circle().stroke(strokeColor, lineWidth: 1))
-            }
+        guard let url = URL(string: "https://keybot1-u5id.onrender.com/verify-key") else {
+            isBusy = false
+            isActive = false
+            return
+        }
 
-            // الوسط
-            Button {} label: {
-                HStack(spacing: 8) {
-                    FourPointStarShape()
-                        .fill(blue)
-                        .frame(width: 22, height: 22)
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-                    Text("Mettre à niveau")
-                        .font(.system(size: 17, weight: .semibold))
+        let body: [String: String] = ["key": savedKey]
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body, options: [])
+        } catch {
+            isBusy = false
+            isActive = false
+            return
+        }
+
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.isBusy = false
+
+                if let error = error {
+                    // في حال عدم وجود انترنت، نعتبر الجلسة صالحة مؤقتاً بناءً على الحفظ المحلي لتفادي قطع التطبيق
+                    self.isActive = true
+                    self.message = "Offline mode active"
+                    return
                 }
-                .foregroundStyle(blue)
-                .padding(.horizontal, 16)
-                .frame(height: 42)
-                .background(chipFill, in: Capsule())
-                .overlay(Capsule().stroke(strokeColor, lineWidth: 1))
-            }
 
-            Spacer()
+                guard let data = data else {
+                    self.isActive = false
+                    return
+                }
 
-            // يمين: الدائرة العلوية المتغيرة حسب حالة المفتاح دون أي انتقال لشاشات أخرى
-            ZStack {
-                Circle()
-                    .fill(chipFill)
-                    .frame(width: 42, height: 42)
-                    .overlay(Circle().stroke(strokeColor, lineWidth: 1))
-
-                switch keyStatus {
-                case .empty:
-                    Circle()
-                        .stroke(.white.opacity(0.4), lineWidth: 2)
-                        .frame(width: 20, height: 20)
-                case .invalid:
-                    Image(systemName: "xmark")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(.red)
-                case .valid:
-                    VStack(spacing: 3) {
-                        RoundedRectangle(cornerRadius: 1).frame(width: 14, height: 2)
-                        RoundedRectangle(cornerRadius: 1).frame(width: 14, height: 2)
+                do {
+                    if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
+                       let success = json["success"] as? Bool, success {
+                        // المفتاح صالح ولا زال ضمن المدة
+                        self.isActive = true
+                        self.message = "Session active"
+                    } else {
+                        // انتهت صلاحية المفتاح أو تم استهلاكه
+                        self.isActive = false
+                        self.delete(self.keyAccount) // حذف المفتاح المنتهي من الجهاز
+                        self.message = "Session expired — enter a new key"
                     }
-                    .foregroundStyle(.green)
+                } catch {
+                    self.isActive = false
                 }
             }
-        }
-        .padding(.horizontal, 20)
-        .padding(.top, 4)
+        }.resume()
     }
 
-    // MARK: - Suggestions
-
-    private var suggestions: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            suggestionRow(title: "Créer une image ou un sticker") {
-                Image(systemName: "photo")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundStyle(textGray)
-            }
-
-            suggestionRow(title: "Écrire ou modifier") {
-                PencilShape()
-                    .stroke(
-                        textGray,
-                        style: StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round)
-                    )
-                    .frame(width: 20, height: 20)
-            }
-
-            suggestionRow(title: "Rechercher sur le Web") {
-                GlobeShape()
-                    .stroke(
-                        textGray,
-                        style: StrokeStyle(lineWidth: 1.6, lineCap: .round)
-                    )
-                    .frame(width: 20, height: 20)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.leading, 50)
-        .padding(.trailing, 20)
-    }
-
-    private func suggestionRow<Icon: View>(
-        title: String,
-        @ViewBuilder icon: () -> Icon
-    ) -> some View {
-        HStack(spacing: 28) {
-            icon()
-                .frame(width: 25, height: 25)
-
-            Text(title)
-                .font(.system(size: 16, weight: .regular))
-                .foregroundStyle(textGray)
+    func beginLaunchSession() {
+        if !isActive {
+            checkSavedKeyOnStartup()
         }
     }
 
-    // MARK: - Input Bar
-
-    private var inputBar: some View {
-        HStack(spacing: 10) {
-            Button {} label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundStyle(.white)
-                    .frame(width: 34, height: 34)
-            }
-
-            TextField("Demander à ChatGPT", text: $key)
-                .focused($isFocused)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .font(.system(size: 17))
-                .foregroundStyle(.white)
-                .submitLabel(.send)
-                .onSubmit {
-                    handleKeyInput()
-                }
-
-            if key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                Button {} label: {
-                    Image(systemName: "mic")
-                        .font(.system(size: 19, weight: .medium))
-                        .foregroundStyle(.white)
-                        .frame(width: 32, height: 32)
-                }
-            } else {
-                Button {
-                    handleKeyInput()
-                } label: {
-                    Image(systemName: "arrow.up")
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(.white)
-                        .frame(width: 34, height: 34)
-                        .background(blue, in: Circle())
-                }
-            }
-
-            if key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                Button {} label: {
-                    Image(systemName: "waveform")
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(.white)
-                        .frame(width: 34, height: 34)
-                        .background(blue, in: Circle())
-                }
-            }
-        }
-        .padding(.leading, 14)
-        .padding(.trailing, 9)
-        .frame(height: 47)
-        .background(chipFill, in: Capsule())
-        .overlay(Capsule().stroke(strokeColor, lineWidth: 1))
-        .padding(.horizontal, 24)
-        .padding(.bottom, 13)
-    }
-
-    // MARK: - Actions
-
-    private func resetState() {
-        key = ""
-        keyStatus = .empty
-        statusMessage = ""
-    }
-
-    private func handleKeyInput() {
+    func activate(key: String) {
         let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
+        guard !trimmed.isEmpty, !isBusy else { return }
+        
+        if let lastAttemptAt, Date().timeIntervalSince(lastAttemptAt) < 1 {
+            message = "Please wait a moment before trying again"
+            return
+        }
+        
+        lastAttemptAt = Date()
+        isBusy = true
+        message = "Checking access key..."
 
-        // إرسال المفتاح إلى LicenseManager للتحقق الحقيقي عبر السيرفر
-        manager.activate(key: trimmed)
+        guard let url = URL(string: "https://keybot1-u5id.onrender.com/verify-key") else {
+            isBusy = false
+            message = "Invalid server URL"
+            return
+        }
 
-        // التحقق من حالة التفعيل وتحديث واجهة الشات بصمت
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-            if manager.isActive {
-                keyStatus = .valid
-                statusMessage = manager.message ?? "تم تفعيل المفتاح وتعمل الخلفية بصمت."
-            } else {
-                keyStatus = .invalid
-                statusMessage = manager.message ?? "المفتاح غير صالح."
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let body: [String: String] = ["key": trimmed]
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body, options: [])
+        } catch {
+            isBusy = false
+            message = "Failed to prepare request data"
+            return
+        }
+
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.isBusy = false
+
+                if let error = error {
+                    self.message = "Connection error: \(error.localizedDescription)"
+                    return
+                }
+
+                guard let data = data else {
+                    self.message = "No response from server"
+                    return
+                }
+
+                do {
+                    if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
+                       let success = json["success"] as? Bool {
+                        
+                        if success {
+                            if self.rememberKey {
+                                self.save(trimmed, for: self.keyAccount)
+                            }
+                            self.isActive = true
+                            self.message = "Activated successfully"
+                        } else {
+                            self.isActive = false
+                            let serverMsg = json["message"] as? String ?? "Invalid access key"
+                            self.message = serverMsg
+                        }
+                    } else {
+                        self.message = "Unexpected server response"
+                    }
+                } catch {
+                    self.message = "Failed to parse server response"
+                }
             }
-        }
-        key = ""
+        }.resume()
     }
-}
 
-// MARK: - Shapes
+    func rememberedKey() -> String? { string(for: keyAccount) }
 
-struct MenuTwoLinesShape: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        let y1 = rect.midY - rect.height * 0.25
-        let y2 = rect.midY + rect.height * 0.25
-
-        path.move(to: CGPoint(x: rect.minX, y: y1))
-        path.addLine(to: CGPoint(x: rect.maxX, y: y1))
-        path.move(to: CGPoint(x: rect.minX, y: y2))
-        path.addLine(to: CGPoint(x: rect.maxX, y: y2))
-        return path
+    func refresh() {
+        checkSavedKeyOnStartup()
     }
-}
 
-struct FourPointStarShape: Shape {
-    func path(in rect: CGRect) -> Path {
-        let center = CGPoint(x: rect.midX, y: rect.midY)
-        let o = rect.width * 0.09
-        let top = CGPoint(x: center.x, y: rect.minY)
-        let right = CGPoint(x: rect.maxX, y: center.y)
-        let bottom = CGPoint(x: center.x, y: rect.maxY)
-        let left = CGPoint(x: rect.minX, y: center.y)
-
-        var path = Path()
-        path.move(to: top)
-        path.addQuadCurve(to: right, control: CGPoint(x: center.x + o, y: center.y - o))
-        path.addQuadCurve(to: bottom, control: CGPoint(x: center.x + o, y: center.y + o))
-        path.addQuadCurve(to: left, control: CGPoint(x: center.x - o, y: center.y + o))
-        path.addQuadCurve(to: top, control: CGPoint(x: center.x - o, y: center.y - o))
-        path.closeSubpath()
-        return path
+    func deactivate() {
+        delete(keyAccount)
+        isActive = false
+        message = "Activation removed from this device"
     }
-}
 
-struct PencilShape: Shape {
-    func path(in rect: CGRect) -> Path {
-        func pt(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
-            CGPoint(x: rect.minX + rect.width * x, y: rect.minY + rect.height * y)
-        }
-        var path = Path()
-        path.move(to: pt(0.10, 0.90))
-        path.addLine(to: pt(0.166, 0.65))
-        path.addLine(to: pt(0.728, 0.088))
-        path.addLine(to: pt(0.912, 0.272))
-        path.addLine(to: pt(0.35, 0.834))
-        path.closeSubpath()
-        path.move(to: pt(0.166, 0.65))
-        path.addLine(to: pt(0.35, 0.834))
-        return path
+    private func string(for account: String) -> String? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+        var result: CFTypeRef?
+        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
+              let data = result as? Data else { return nil }
+        return String(data: data, encoding: .utf8)
     }
-}
 
-struct GlobeShape: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.addEllipse(in: rect)
-        let inner = CGRect(x: rect.midX - rect.width * 0.20, y: rect.minY, width: rect.width * 0.40, height: rect.height)
-        path.addEllipse(in: inner)
-        path.move(to: CGPoint(x: rect.minX, y: rect.midY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
-        path.move(to: CGPoint(x: rect.midX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.midX, y: rect.maxY))
-        return path
+    private func save(_ value: String, for account: String) {
+        let base: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account
+        ]
+        SecItemDelete(base as CFDictionary)
+        var item = base
+        item[kSecValueData as String] = Data(value.utf8)
+        item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        SecItemAdd(item as CFDictionary, nil)
+    }
+
+    private func delete(_ account: String) {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account
+        ]
+        SecItemDelete(query as CFDictionary)
     }
 }
