@@ -59,8 +59,8 @@ struct ThreeOneOSFiveApp: App {
                 appState.detectSupport()
                 checkForUpdate()
             }
-            .onChange(of: scenePhase) { oldPhase, newPhase in
-                guard newPhase == .active else { return }
+            .onChange(of: scenePhase) { phase in
+                guard phase == .active else { return }
                 licenseManager.beginLaunchSession()
                 appState.detectSupport()
             }
