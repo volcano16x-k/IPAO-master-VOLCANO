@@ -130,7 +130,7 @@ struct LicenseActivationView: View {
                     .foregroundStyle(textGray)
             }
 
-            suggestionRow(title: "Éقrire ou modifier une note") {
+            suggestionRow(title: "Écrire ou modifier une note") {
                 PencilShape()
                     .stroke(
                         textGray,
@@ -312,7 +312,7 @@ struct GlobeShape: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
         path.addEllipse(in: rect)
-        let inner = CGRect(x: rect.midTitleX ?? (rect.midX - rect.width * 0.20), y: rect.minY, width: rect.width * 0.40, height: rect.height)
+        let inner = CGRect(x: rect.midX - rect.width * 0.20, y: rect.minY, width: rect.width * 0.40, height: rect.height)
         path.addEllipse(in: inner)
         path.move(to: CGPoint(x: rect.minX, y: rect.midY))
         path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
