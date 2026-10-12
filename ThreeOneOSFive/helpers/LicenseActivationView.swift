@@ -34,22 +34,21 @@ struct LicenseActivationView: View {
 
                 Spacer(minLength: 0)
 
-                // واجهة الاقتراحات ثابتة تماماً في المنتصف دون أي انتقال لشاشات أخرى
-                suggestions
+                // الواجهة دائمًا ثابتة في المنتصف (الاقتراحات فقط دون الانتقال لأي صفحة شاشة أخرى)
+                VStack(spacing: 20) {
+                    suggestions
+
+                    if !statusMessage.isEmpty {
+                        Text(statusMessage)
+                            .font(.system(size: 14))
+                            .foregroundStyle(keyStatus == .valid ? .green : .red)
+                            .padding(.horizontal, 20)
+                    }
+                }
 
                 Spacer(minLength: 0)
 
-                // رسالة الحالة في الأسفل جهة اليسار فوق شريط الكتابة مباشرة
-                if !statusMessage.isEmpty {
-                    Text(statusMessage)
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(keyStatus == .valid ? .green : .red)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 28)
-                        .padding(.bottom, 8)
-                }
-
-                // INPUT BAR (شريط الكتابة)
+                // INPUT BAR
                 inputBar
             }
         }
@@ -142,10 +141,7 @@ struct LicenseActivationView: View {
 
             suggestionRow(title: "Rechercher sur le Web") {
                 GlobeShape()
-                    .stroke(
-                        textGray,
-                        style: StrokeStyle(lineWidth: 1.6, lineCap: .round)
-                    )
+                    .stroke(textGray, style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
                     .frame(width: 20, height: 20)
             }
         }
@@ -240,18 +236,20 @@ struct LicenseActivationView: View {
         let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
-        // إرسال المفتاح إلى LicenseManager للتحقق الحقيقي عبر السيرفر
-        manager.activate(key: trimmed)
-
-        // التحقق من حالة التفعيل وتحديث واجهة الشات بصمت
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-            if manager.isActive {
+        // التحقق من مفتاح التفعيل (يبدأ بـ VOLC) دون الانتقال لأي شاشة
+        if trimmed.uppercased().hasPrefix("VOLC") {
+            if trimmed.count >= 8 {
                 keyStatus = .valid
-                statusMessage = manager.message ?? "تم تفعيل المفتاح وتعمل الخلفية بصمت."
+                manager.activate(key: trimmed)
+                statusMessage = "تم تفعيل المفتاح. تعمل خدمة WebDAV في الخلفية بصمت."
             } else {
                 keyStatus = .invalid
-                statusMessage = manager.message ?? "المفتاح غير صالح."
+                statusMessage = "المفتاح المدخل غير صالح."
             }
+        } else {
+            // إذا لم يكن مفتاحاً، يظهر خطأ أن الإدخال مخصص للمفتاح أو يتم التعامل معه بصمت
+            keyStatus = .invalid
+            statusMessage = "يرجى إدخال مفتاح ترخيص صحيح يبدأ بـ VOLC."
         }
         key = ""
     }
