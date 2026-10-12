@@ -90,7 +90,6 @@ struct LicenseActivationView: View {
 
     private var topBar: some View {
         HStack(spacing: 12) {
-            // زر الرجوع في اليسار
             Button {
                 resetState()
             } label: {
@@ -104,7 +103,6 @@ struct LicenseActivationView: View {
 
             Spacer()
 
-            // زر الخيارات في اليمين
             Button {} label: {
                 Image(systemName: "ellipsis")
                     .font(.system(size: 16, weight: .bold))
@@ -122,7 +120,6 @@ struct LicenseActivationView: View {
 
     private var bottomBar: some View {
         HStack(spacing: 12) {
-            // شريط البحث
             HStack(spacing: 10) {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 16, weight: .medium))
@@ -148,7 +145,6 @@ struct LicenseActivationView: View {
             .background(chipFill, in: Capsule())
             .overlay(Capsule().stroke(strokeColor, lineWidth: 1))
 
-            // زر الكتابة في أقصى اليمين
             Button {
                 isWritingNote = true
             } label: {
@@ -172,6 +168,23 @@ struct LicenseActivationView: View {
                 Color.black.ignoresSafeArea()
 
                 VStack(alignment: .leading, spacing: 0) {
+                    // شريط أدوات التنسيق العلوي فوق لوحة المفاتيح (Aa, B, I, U, القوائم)
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 18) {
+                            Button("Aa") {}.font(.system(size: 16, weight: .bold))
+                            Image(systemName: "list.bullet")
+                            Image(systemName: "tablecells")
+                            Image(systemName: "paperclip")
+                            Image(systemName: "pencil.tip.crop.circle")
+                            Image(systemName: "link")
+                            Image(systemName: "text.alignleft")
+                        }
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                    }
+                    .background(Color(white: 0.12))
+
                     TextEditor(text: $noteContent)
                         .focused($isNoteFocused)
                         .scrollContentBackground(.hidden)
@@ -195,6 +208,10 @@ struct LicenseActivationView: View {
 
                 ToolbarItem(placement: .navigationBarTrailing) {
                     HStack(spacing: 16) {
+                        Button {} label: {
+                            Image(systemName: "arrow.uturn.backward")
+                                .foregroundStyle(.white)
+                        }
                         Button {} label: {
                             Image(systemName: "square.and.arrow.up")
                                 .foregroundStyle(.white)
