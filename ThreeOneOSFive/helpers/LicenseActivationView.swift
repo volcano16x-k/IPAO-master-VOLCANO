@@ -185,6 +185,7 @@ struct LicenseActivationView: View {
                 Color.black.ignoresSafeArea()
 
                 VStack(alignment: .leading, spacing: 0) {
+                    // شريط أدوات التنسيق العلوي المطابق للصورة تماماً
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 22) {
                             Button(action: { appendFormatting(tag: "**") }) {
