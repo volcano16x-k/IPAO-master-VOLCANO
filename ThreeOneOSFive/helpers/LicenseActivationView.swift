@@ -58,9 +58,9 @@ struct LicenseActivationView: View {
             Spacer()
 
             Button(action: {}) {
-                Image(systemName: "bubble.left.and.bubble.right")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundStyle(.white)
+                ChatRingShape()
+                    .stroke(.white, style: StrokeStyle(lineWidth: 2.2, lineCap: .round, lineJoin: .round))
+                    .frame(width: 22, height: 22)
                     .frame(width: 42, height: 42)
                     .background(chipFill, in: Circle())
                     .overlay(Circle().stroke(strokeColor, lineWidth: 1))
@@ -144,5 +144,36 @@ struct LicenseActivationView: View {
         .overlay(Capsule().stroke(strokeColor, lineWidth: 1))
         .padding(.horizontal, 12)
         .padding(.bottom, 13)
+    }
+}
+
+// MARK: - Chat ring icon
+
+struct ChatRingShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let c = CGPoint(x: rect.midX, y: rect.midY)
+        let r = min(rect.width, rect.height) / 2
+
+        func point(_ deg: Double, _ radius: CGFloat) -> CGPoint {
+            let a = deg * .pi / 180
+            return CGPoint(x: c.x + radius * CGFloat(cos(a)),
+                           y: c.y + radius * CGFloat(sin(a)))
+        }
+
+        var p = Path()
+
+        p.addArc(center: c, radius: r,
+                 startAngle: .degrees(160), endAngle: .degrees(330),
+                 clockwise: false)
+
+        p.addArc(center: c, radius: r,
+                 startAngle: .degrees(20), endAngle: .degrees(110),
+                 clockwise: false)
+
+        p.move(to: point(112, r))
+        p.addLine(to: CGPoint(x: rect.minX + r * 0.1, y: rect.maxY))
+        p.addLine(to: point(148, r))
+
+        return p
     }
 }
